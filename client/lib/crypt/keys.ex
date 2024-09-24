@@ -10,15 +10,15 @@ defmodule Crypt.Keys do
 
   ## Examples
 
-      iex> {:ok, public_key, private_key} = Crypt.Keys.generate_keypair()
-      {:ok, public_key, private_key}
+      iex> {public_key, private_key} = Crypt.Keys.generate_keypair()
+      {public_key, private_key}
   """
 
-  @spec generate_keypair() :: {:ok, binary, binary}
+  @spec generate_keypair() :: {binary, binary}
   def generate_keypair do
-    {public_key, private_key} = :crypto.generate_key(:ecdh, :secp256r1)
+    {public_key, private_key} = :crypto.generate_key(:eddh, :x25519)
 
-    {:ok, public_key, private_key}
+    {public_key, private_key}
   end
 
   @doc """
@@ -26,17 +26,17 @@ defmodule Crypt.Keys do
 
   ## Examples
 
-      iex> public_key = Base.decode16!("0443216ACE41DA2BCCABB04481CFF57B4B1944DF6C8BB4870A33AA6E2B74FD7073F7A1153970982C4E937A69B54DDB2DA180C584BD1F8B25938C154E27B3DFD663")
-      iex> private_key = Base.decode16!("227A1C52D8706836090CB42C4659C9B13CEA0DB40D278D9FF37E4F3531C99440")
-      iex> {:ok, shared_key} = Crypt.Keys.generate_ecdh_secret(private_key, public_key)
-      {:ok, shared_key}
+      iex> public_key = Base.decode16!("A1EAF8F96EC553733FC0636C162822AB35F1279F56A1FBB6476FD9838386931F")
+      iex> private_key = Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
+      iex> shared_key = Crypt.Keys.generate_eddh_secret(public_key, private_key)
+      shared_key
   """
 
-  @spec generate_ecdh_secret(binary, binary) :: {:ok, binary}
-  def generate_ecdh_secret(private_key, public_key) do
-    shared_key = :crypto.compute_key(:ecdh, public_key, private_key, :secp256r1)
+  @spec generate_eddh_secret(binary, binary) :: binary
+  def generate_eddh_secret(public_key, private_key) do
+    shared_key = :crypto.compute_key(:eddh, public_key, private_key, :x25519)
 
-    {:ok, shared_key}
+    shared_key
   end
 
   @doc """
@@ -46,14 +46,14 @@ defmodule Crypt.Keys do
 
       iex> key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
       iex> length = 80
-      iex> {:ok, new_key} = Crypt.Keys.generate_kdf_secret(key, length)
-      {:ok, new_key}
+      iex> new_key = Crypt.Keys.generate_kdf_secret(key, length)
+      new_key
   """
 
-  @spec generate_kdf_secret(binary, integer) :: {:ok, binary}
+  @spec generate_kdf_secret(binary, integer) :: binary
   def generate_kdf_secret(key, length) do
     new_key = :crypto.pbkdf2_hmac(:sha256, key, "", 1, length)
 
-    {:ok, new_key}
+    new_key
   end
 end
