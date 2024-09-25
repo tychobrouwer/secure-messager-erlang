@@ -39,7 +39,7 @@ defmodule CryptTest do
 
     decrypted_message_test = "Hello, world!"
 
-    {decrypted_message, valid} =
+    {decrypted_message, _} =
       Crypt.decrypt_message(encrypted_message, key, iv, public_key, signature)
 
     assert decrypted_message == decrypted_message_test

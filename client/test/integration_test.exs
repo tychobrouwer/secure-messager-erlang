@@ -46,9 +46,9 @@ defmodule IntegrationTest do
     assert m13_A == m13_B
     assert i13_A == i13_B
 
-    {dec_m1, valid_1} = Crypt.decrypt_message(enc_m1, m11_B, i11_B, public_key_A1, sign_1)
-    {dec_m2, valid_2} = Crypt.decrypt_message(enc_m2, m12_B, i12_B, public_key_A1, sign_2)
-    {dec_m3, valid_3} = Crypt.decrypt_message(enc_m3, m13_B, i13_B, public_key_A1, sign_3)
+    {dec_m1, _} = Crypt.decrypt_message(enc_m1, m11_B, i11_B, public_key_A1, sign_1)
+    {dec_m2, _} = Crypt.decrypt_message(enc_m2, m12_B, i12_B, public_key_A1, sign_2)
+    {dec_m3, _} = Crypt.decrypt_message(enc_m3, m13_B, i13_B, public_key_A1, sign_3)
 
     assert dec_m1 == m1
     assert dec_m2 == m2
@@ -86,9 +86,9 @@ defmodule IntegrationTest do
     assert m23_A == m23_B
     assert i23_A == i23_B
 
-    {dec_m4, valid_4} = Crypt.decrypt_message(enc_m4, m21_A, i21_A, public_key_B1, sign_4)
-    {dec_m5, valid_5} = Crypt.decrypt_message(enc_m5, m22_A, i22_A, public_key_B1, sign_5)
-    {dec_m6, valid_6} = Crypt.decrypt_message(enc_m6, m23_A, i23_A, public_key_B1, sign_6)
+    {dec_m4, _} = Crypt.decrypt_message(enc_m4, m21_A, i21_A, public_key_B1, sign_4)
+    {dec_m5, _} = Crypt.decrypt_message(enc_m5, m22_A, i22_A, public_key_B1, sign_5)
+    {dec_m6, _} = Crypt.decrypt_message(enc_m6, m23_A, i23_A, public_key_B1, sign_6)
 
     assert dec_m4 == m4
     assert dec_m5 == m5
