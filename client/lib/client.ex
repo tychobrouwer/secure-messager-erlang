@@ -5,11 +5,7 @@ defmodule Client do
 
   require Logger
 
-  @type ratchet :: %{
-          root_key: binary | nil,
-          child_key: binary | nil,
-          iv_key: binary | nil
-        }
+  @type ratchet :: Crypt.Ratchet.ratchet()
 
   @doc """
   Starts the client.
@@ -24,24 +20,37 @@ defmodule Client do
   def start do
     Logger.info("Starting client")
 
-    private_key =
-      Base.decode16!("DF2F4C61B99C25C96B55E1B5C2E04F419D8708248D196C177CF135F075ADFD60")
+    {private_key, public_key, dh_ratchet, m_ratchet} = init_client()
 
-    public_key =
-      Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+    {dh_ratchet, m_ratchet} =
+      send_message("Hello, World!", dh_ratchet, m_ratchet, private_key, public_key)
+
+    {_, _} = send_message("Hello, World! 2", dh_ratchet, m_ratchet, private_key, public_key)
+
+    :ok
+  end
+
+  @doc """
+  Initialize the client.
+
+  ## Examples
+
+      iex> {private_key, public_key, dh_ratchet, m_ratchet} = Client.init_client()
+      {private_key, public_key, dh_ratchet, m_ratchet}
+  """
+
+  @spec init_client() :: {binary, binary, ratchet, ratchet}
+  def init_client() do
+    {private_key, public_key} = load_keypair()
 
     # Initialize dh ratchet (TODO this should be 3dh ratchet method)
     root_key = Crypt.Keys.generate_eddh_secret(private_key, public_key)
     dh_ratchet = %{root_key: root_key, child_key: nil, iv_key: nil}
+
+    # Initialize message ratchet
     m_ratchet = nil
 
-    {dh_ratchet, m_ratchet, enc_m_1, sign_1} =
-      send_message("Hello, World!", dh_ratchet, m_ratchet, private_key, public_key)
-
-    {dh_ratchet, m_ratchet, enc_m_2, sign_2} =
-      send_message("Hello, World! 2", dh_ratchet, m_ratchet, private_key, public_key)
-
-    :ok
+    {private_key, public_key, dh_ratchet, m_ratchet}
   end
 
   @doc """
@@ -67,18 +76,12 @@ defmodule Client do
   @doc """
   Send a message to a recipient.
 
-  Return
-  - dh_ratchet: the DH ratchet
-  - m_ratchet: the message ratchet
-  - enc_m: the encrypted message
-  - sign: the signature of the message
-
   ## Examples
 
       iex> {dh_ratchet, m_ratchet, enc_m, sign} = Client.send_message("Hello, World!", dh_ratchet, m_ratchet, private_key, recipient_public_key)
       {dh_ratchet, m_ratchet, enc_m, sign}
   """
-  @spec send_message(binary, ratchet, ratchet, binary, binary) :: {:ok, binary, binary}
+  @spec send_message(binary, ratchet, ratchet, binary, binary) :: {ratchet, ratchet}
   def send_message(message, dh_ratchet, m_ratchet, private_key, recipient_public_key) do
     {dh_ratchet, m_ratchet} =
       if m_ratchet == nil do
@@ -100,6 +103,6 @@ defmodule Client do
       "encrpyted message send: \"#{Base.encode64(enc_m)}\", signature: \"#{Base.encode64(sign)}\""
     )
 
-    {dh_ratchet, m_ratchet, enc_m, sign}
+    {dh_ratchet, m_ratchet}
   end
 end
