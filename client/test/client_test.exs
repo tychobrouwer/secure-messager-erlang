@@ -4,10 +4,6 @@ defmodule ClientTest do
 
   require Logger
 
-  test "start" do
-    assert Client.start() == :ok
-  end
-
   test "init_client" do
     recipient_public_key =
       Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")

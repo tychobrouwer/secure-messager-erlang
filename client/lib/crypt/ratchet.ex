@@ -73,7 +73,7 @@ defmodule Crypt.Ratchet do
   """
 
   @spec next_chain_key(binary, binary) :: {binary, binary, binary}
-  def next_chain_key(key, inp_key \\ "") do
+  defp next_chain_key(key, inp_key \\ "") do
     output = Crypt.Keys.generate_kdf_secret(key <> inp_key, 80)
 
     <<key_1::binary-size(32), output::binary>> = output

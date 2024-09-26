@@ -9,20 +9,6 @@ defmodule Client do
   @type keypair :: Crypt.Keys.keypair()
 
   @doc """
-  Starts the client.
-
-  ## Examples
-
-      iex> Client.start()
-      :ok
-  """
-
-  @spec start() :: :ok
-  def start do
-    :ok
-  end
-
-  @doc """
   Initialize the client.
 
   ## Examples
@@ -125,6 +111,7 @@ defmodule Client do
     # TODO: This should be a message from the server
     encrypted_message = Base.decode64!("WnLgGnWxZC6k5t6TBA==")
 
+    # TODO: This should be a signature from the server
     signature =
       Base.decode64!(
         "8bEFva25R7bKTPvtRrn7A7sLmXZ06VSrtzXWGDPU8deEOYTZRqSKPA+OeWzucOtMzaOC8ht74xmFrFrLoz+yAg=="

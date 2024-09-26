@@ -6,23 +6,6 @@ defmodule RatchetTest do
 
   require Logger
 
-  test "next_chain_key/1" do
-    chain_key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-
-    key_test = "B88B85AFF9E6039891E35C82F426915E6E1D90088481BE6238B47AFED1131DCC"
-    outkey_test = "3BD7F5B1EC8BA060909FE0C2000BE2C929BAF8D373F0595090E56D3727789879"
-    iv_test = "F20D166279BEA4E5EE36D96630D72253"
-
-    {key, outkey, iv} = Crypt.Ratchet.next_chain_key(chain_key)
-
-    assert byte_size(key) == 32
-    assert byte_size(outkey) == 32
-    assert byte_size(iv) == 16
-    assert Base.encode16(key) == key_test
-    assert Base.encode16(outkey) == outkey_test
-    assert Base.encode16(iv) == iv_test
-  end
-
   test "ratchet_init/3" do
     root_key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
     ratchet = %{root_key: root_key, child_key: nil, iv_key: nil}

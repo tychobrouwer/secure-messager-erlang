@@ -1,24 +1,21 @@
 defmodule Server.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
+  use Application
 
   require Logger
-
-  use Application
 
   @impl true
   def start(_type, _args) do
     port = String.to_integer(System.get_env("PORT") || "4040")
+    address = '127.0.0.1'
 
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
       {Registry, keys: :unique, name: TCPServer.Registry},
-      Supervisor.child_spec({Task, fn -> TCPServer.accept(port) end}, restart: :permanent)
+      Supervisor.child_spec({Task, fn -> TCPServer.connect(address, port) end},
+        restart: :permanent
+      )
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [
       strategy: :one_for_one,
       max_restarts: 1000,
