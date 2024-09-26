@@ -5,19 +5,19 @@ defmodule IntegrationTest do
 
   test "sending 3 messages A to B and from B to A" do
     # initialize users on platform
-    {private_key_A0, public_key_A0} = Crypt.Keys.generate_keypair()
-    {private_key_B0, public_key_B0} = Crypt.Keys.generate_keypair()
+    keypair_A0 = Crypt.Keys.generate_keypair()
+    keypair_B0 = Crypt.Keys.generate_keypair()
 
     # A sends 3 messages to B
 
-    {private_key_A1, public_key_A1} = Crypt.Keys.generate_keypair()
+    keypair_A1 = Crypt.Keys.generate_keypair()
 
     # Initialize dh ratchet (TODO this should be 3dh ratchet method)
-    r0_A = Crypt.Keys.generate_eddh_secret(private_key_A0, public_key_B0)
+    r0_A = Crypt.Keys.generate_eddh_secret(keypair_A0, keypair_B0.public)
     dh_ratchet_0_A = %{root_key: r0_A, child_key: nil, iv_key: nil}
 
     # Rotate dh ratchet
-    dh_ratchet_1_A = Crypt.Ratchet.ratchet_init(dh_ratchet_0_A, private_key_A1, public_key_B0)
+    dh_ratchet_1_A = Crypt.Ratchet.ratchet_init(dh_ratchet_0_A, keypair_A1, keypair_B0.public)
 
     # Rotate message ratchet 3 times
     m_ratchet_11_A = Crypt.Ratchet.ratchet_cycle(dh_ratchet_1_A.child_key)
@@ -33,7 +33,7 @@ defmodule IntegrationTest do
         m1,
         m_ratchet_11_A.child_key,
         m_ratchet_11_A.iv_key,
-        private_key_A1
+        keypair_A1.private
       )
 
     {enc_m2, sign_2} =
@@ -41,7 +41,7 @@ defmodule IntegrationTest do
         m2,
         m_ratchet_12_A.child_key,
         m_ratchet_12_A.iv_key,
-        private_key_A1
+        keypair_A1.private
       )
 
     {enc_m3, sign_3} =
@@ -49,7 +49,7 @@ defmodule IntegrationTest do
         m3,
         m_ratchet_13_A.child_key,
         m_ratchet_13_A.iv_key,
-        private_key_A1
+        keypair_A1.private
       )
 
     # save encrypted messages and signatures to server
@@ -57,17 +57,18 @@ defmodule IntegrationTest do
     # B receives 3 messages from A
 
     # Initialize dh ratchet (TODO this should be 3dh ratchet method)
-    r0_B = Crypt.Keys.generate_eddh_secret(private_key_B0, public_key_A0)
+    r0_B = Crypt.Keys.generate_eddh_secret(keypair_B0, keypair_A0.public)
     dh_ratchet_0_B = %{root_key: r0_B, child_key: nil, iv_key: nil}
 
     # Rotate dh ratchet
-    dh_ratchet_1_B = Crypt.Ratchet.ratchet_init(dh_ratchet_0_B, private_key_B0, public_key_A1)
+    dh_ratchet_1_B = Crypt.Ratchet.ratchet_init(dh_ratchet_0_B, keypair_B0, keypair_A1.public)
 
     # Rotate message ratchet 3 times
     m_ratchet_11_B = Crypt.Ratchet.ratchet_cycle(dh_ratchet_1_B.child_key)
     m_ratchet_12_B = Crypt.Ratchet.ratchet_cycle(m_ratchet_11_B.root_key)
     m_ratchet_13_B = Crypt.Ratchet.ratchet_cycle(m_ratchet_12_B.root_key)
 
+    assert r0_A == r0_B
     assert dh_ratchet_0_A == dh_ratchet_0_B
     assert dh_ratchet_1_A == dh_ratchet_1_B
     assert m_ratchet_11_A == m_ratchet_11_B
@@ -79,7 +80,7 @@ defmodule IntegrationTest do
         enc_m1,
         m_ratchet_11_B.child_key,
         m_ratchet_11_B.iv_key,
-        public_key_A1,
+        keypair_A1.public,
         sign_1
       )
 
@@ -88,7 +89,7 @@ defmodule IntegrationTest do
         enc_m2,
         m_ratchet_12_B.child_key,
         m_ratchet_12_B.iv_key,
-        public_key_A1,
+        keypair_A1.public,
         sign_2
       )
 
@@ -97,7 +98,7 @@ defmodule IntegrationTest do
         enc_m3,
         m_ratchet_13_B.child_key,
         m_ratchet_13_B.iv_key,
-        public_key_A1,
+        keypair_A1.public,
         sign_3
       )
 
@@ -107,9 +108,10 @@ defmodule IntegrationTest do
 
     # B sends 3 messages to A
 
-    {private_key_B1, public_key_B1} = Crypt.Keys.generate_keypair()
+    keypair_B1 = Crypt.Keys.generate_keypair()
 
-    dh_ratchet_2_B = Crypt.Ratchet.ratchet_init(dh_ratchet_1_B, private_key_B1, public_key_A1)
+    dh_ratchet_2_B = Crypt.Ratchet.ratchet_init(dh_ratchet_1_B, keypair_B1, keypair_A1.public)
+
     m_ratchet_21_B = Crypt.Ratchet.ratchet_cycle(dh_ratchet_2_B.child_key)
     m_ratchet_22_B = Crypt.Ratchet.ratchet_cycle(m_ratchet_21_B.root_key)
     m_ratchet_23_B = Crypt.Ratchet.ratchet_cycle(m_ratchet_22_B.root_key)
@@ -123,7 +125,7 @@ defmodule IntegrationTest do
         m4,
         m_ratchet_21_B.child_key,
         m_ratchet_21_B.iv_key,
-        private_key_B1
+        keypair_B1.private
       )
 
     {enc_m5, sign_5} =
@@ -131,7 +133,7 @@ defmodule IntegrationTest do
         m5,
         m_ratchet_22_B.child_key,
         m_ratchet_22_B.iv_key,
-        private_key_B1
+        keypair_B1.private
       )
 
     {enc_m6, sign_6} =
@@ -139,14 +141,15 @@ defmodule IntegrationTest do
         m6,
         m_ratchet_23_B.child_key,
         m_ratchet_23_B.iv_key,
-        private_key_B1
+        keypair_B1.private
       )
 
     # save encrypted messages and signatures to server
 
     # A receives 3 messages from B
 
-    dh_ratchet_2_A = Crypt.Ratchet.ratchet_init(dh_ratchet_1_A, private_key_A1, public_key_B1)
+    dh_ratchet_2_A = Crypt.Ratchet.ratchet_init(dh_ratchet_1_A, keypair_A1, keypair_B1.public)
+
     m_ratchet_21_A = Crypt.Ratchet.ratchet_cycle(dh_ratchet_2_A.child_key)
     m_ratchet_22_A = Crypt.Ratchet.ratchet_cycle(m_ratchet_21_A.root_key)
     m_ratchet_23_A = Crypt.Ratchet.ratchet_cycle(m_ratchet_22_A.root_key)
@@ -161,7 +164,7 @@ defmodule IntegrationTest do
         enc_m4,
         m_ratchet_21_A.child_key,
         m_ratchet_21_A.iv_key,
-        public_key_B1,
+        keypair_B1.public,
         sign_4
       )
 
@@ -170,7 +173,7 @@ defmodule IntegrationTest do
         enc_m5,
         m_ratchet_22_A.child_key,
         m_ratchet_22_A.iv_key,
-        public_key_B1,
+        keypair_B1.public,
         sign_5
       )
 
@@ -179,7 +182,7 @@ defmodule IntegrationTest do
         enc_m6,
         m_ratchet_23_A.child_key,
         m_ratchet_23_A.iv_key,
-        public_key_B1,
+        keypair_B1.public,
         sign_6
       )
 

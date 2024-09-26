@@ -30,7 +30,7 @@ defmodule CryptTest do
     private_key =
       Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
 
-    {public_key, _} = :crypto.generate_key(:eddh, :x25519, private_key)
+    {foreign_public_key, _} = :crypto.generate_key(:eddh, :x25519, private_key)
 
     signature =
       Base.decode16!(
@@ -40,7 +40,7 @@ defmodule CryptTest do
     decrypted_message_test = "Hello, world!"
 
     {decrypted_message, _} =
-      Crypt.decrypt_message(encrypted_message, key, iv, public_key, signature)
+      Crypt.decrypt_message(encrypted_message, key, iv, foreign_public_key, signature)
 
     assert decrypted_message == decrypted_message_test
     # assert valid == true

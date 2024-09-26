@@ -7,6 +7,7 @@ defmodule Crypt.Ratchet do
 
   require Crypt.Keys
 
+  @type keypair :: Crypt.Keys.keypair()
   @type ratchet :: %{
           root_key: binary | nil,
           child_key: binary | nil,
@@ -20,18 +21,18 @@ defmodule Crypt.Ratchet do
 
       iex> root_key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
       iex> ratchet = %{root_key: root_key, child_key: nil, iv_key: nil}
-      iex> {private_key, _} = Crypt.Keys.generate_keypair()
-      iex> {_, foreign_public_key} = Crypt.Keys.generate_keypair()
-      iex> ratchet = Crypt.Ratchet.ratchet_init(ratchet, private_key, foreign_public_key)
+      iex> keypair = Crypt.Keys.generate_keypair()
+      iex> foreign_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+      iex> ratchet = Crypt.Ratchet.ratchet_init(ratchet, keypair, foreign_public_key)
       ratchet
   """
 
-  @spec ratchet_init(ratchet, binary, binary) :: ratchet
-  def ratchet_init(ratchet, private_key, foreign_public_key) do
+  @spec ratchet_init(ratchet, keypair, binary) :: ratchet
+  def ratchet_init(ratchet, keypair, foreign_public_key) do
     root_key = ratchet.root_key
 
     # Generate new shared secret using DH key exchange
-    shared_secret = Crypt.Keys.generate_eddh_secret(private_key, foreign_public_key)
+    shared_secret = Crypt.Keys.generate_eddh_secret(keypair, foreign_public_key)
 
     # Generate new root and ratchet key
     {new_root_key, ratchet_key, _} = next_chain_key(root_key, shared_secret)

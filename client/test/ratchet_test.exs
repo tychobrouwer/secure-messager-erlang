@@ -30,13 +30,15 @@ defmodule RatchetTest do
     private_key =
       Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
 
+    keypair = %{public: nil, private: private_key}
+
     foreign_public_key =
       Base.decode16!("BEE069055DE66E1D2FDE416917412CE4E173B6B8E18FFECFA04FCB513858ED37")
 
-    root_key_test = "FD103E5F5B8DA1941FC1AB444966D1CBBE1FD42B59D2D359D908B091FF63930F"
-    child_key_test = "DA4D9B49CE3E36A2D7EBB76601D0A539DA13B07485E46C4F4D4EEA318DBC7B55"
+    root_key_test = "E7ECAB3D408A11764BFEC9FBCD233E45E63B61F0887627DD3885E2E88F44AAC7"
+    child_key_test = "070943F0FE16B6A0DCFDE3359CF5610D33138C4F63E1AEC874A6CE47483AF609"
 
-    new_ratchet = Crypt.Ratchet.ratchet_init(ratchet, private_key, foreign_public_key)
+    new_ratchet = Crypt.Ratchet.ratchet_init(ratchet, keypair, foreign_public_key)
 
     assert byte_size(new_ratchet.root_key) == 32
     assert byte_size(new_ratchet.child_key) == 32

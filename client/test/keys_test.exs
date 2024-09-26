@@ -3,25 +3,25 @@ defmodule KeysTest do
   doctest Crypt.Keys
 
   test "generate_keypair/0" do
-    {public_key, private_key} = Crypt.Keys.generate_keypair()
+    keypair = Crypt.Keys.generate_keypair()
 
-    assert byte_size(public_key) == 32
-    assert byte_size(private_key) == 32
+    {public_key_test, _} = :crypto.generate_key(:eddh, :x25519, keypair.private)
+
+    assert byte_size(keypair.public) == 32
+    assert byte_size(keypair.private) == 32
+    assert keypair.public == public_key_test
   end
 
   test "generate_eddh_secret/2" do
-    public_key =
-      Base.decode16!("A1EAF8F96EC553733FC0636C162822AB35F1279F56A1FBB6476FD9838386931F")
+    keypair = Crypt.Keys.generate_keypair()
+    foreign_keypair = Crypt.Keys.generate_keypair()
 
-    private_key =
-      Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
-
-    shared_secret_test = "C7DEB05D6332D62EAFF7C61A8E211EFC28FDAB6871D1226C1178AE80E3C9266B"
-
-    shared_secret = Crypt.Keys.generate_eddh_secret(public_key, private_key)
+    shared_secret = Crypt.Keys.generate_eddh_secret(keypair, foreign_keypair.public)
+    foreign_shared_secret = Crypt.Keys.generate_eddh_secret(foreign_keypair, keypair.public)
 
     assert byte_size(shared_secret) == 32
-    assert Base.encode16(shared_secret) == shared_secret_test
+    assert byte_size(foreign_shared_secret) == 32
+    assert shared_secret == foreign_shared_secret
   end
 
   test "generate_kdf_secret/2" do
