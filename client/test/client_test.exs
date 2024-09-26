@@ -1,5 +1,6 @@
 defmodule ClientTest do
   use ExUnit.Case, async: true
+  doctest Client
 
   require Logger
 
@@ -7,7 +8,21 @@ defmodule ClientTest do
     assert Client.start() == :ok
   end
 
-  test "send_message+receive_message" do
+  test "init_client" do
+    recipient_public_key =
+      Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+
+    {keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+
+    assert byte_size(keypair.private) == 32
+    assert byte_size(keypair.public) == 32
+    assert byte_size(dh_ratchet.root_key) == 32
+    assert dh_ratchet.child_key == nil
+    assert dh_ratchet.iv_key == nil
+    assert m_ratchet == nil
+  end
+
+  test "send_message" do
     recipient_public_key =
       Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
 

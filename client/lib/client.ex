@@ -27,7 +27,8 @@ defmodule Client do
 
   ## Examples
 
-      iex> {keypair, dh_ratchet, m_ratchet} = Client.init_client()
+      iex> recipient_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+      iex> {keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
       {keypair, dh_ratchet, m_ratchet}
   """
 
@@ -70,8 +71,10 @@ defmodule Client do
 
   ## Examples
 
-      iex> {dh_ratchet, m_ratchet, enc_m, sign} = Client.send_message("Hello, World!", dh_ratchet, m_ratchet, keypair, recipient_public_key)
-      {dh_ratchet, m_ratchet, enc_m, sign}
+      iex>recipient_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+      iex>{keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+      iex> {dh_ratchet, m_ratchet, enc_m} = Client.send_message("Hello, World!", dh_ratchet, m_ratchet, keypair, recipient_public_key)
+      {dh_ratchet, m_ratchet, enc_m}
   """
   @spec send_message(binary, ratchet, ratchet, keypair, binary) :: {ratchet, ratchet, keypair}
   def send_message(message, dh_ratchet, m_ratchet, keypair, recipient_public_key) do
@@ -93,6 +96,7 @@ defmodule Client do
     {encrypted_message, signature} =
       Crypt.encrypt_message(message, m_ratchet.child_key, m_ratchet.iv_key, keypair.private)
 
+    # TODO: This should be sent to the server
     Logger.info(
       "encrpyted message send: \"#{Base.encode64(encrypted_message)}\", signature: \"#{Base.encode64(signature)}\""
     )
@@ -105,8 +109,10 @@ defmodule Client do
 
   ## Examples
 
-      iex> {dh_ratchet, m_ratchet, dec_m, valid} = Client.receive_message(dh_ratchet, m_ratchet, keypair, recipient_public_key)
-      {dh_ratchet, m_ratchet, dec_m, valid}
+      iex>recipient_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+      iex>{keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+      iex> {dh_ratchet, m_ratchet, decrypted_message, valid} = Client.receive_message(dh_ratchet, m_ratchet, keypair, recipient_public_key)
+      {dh_ratchet, m_ratchet, decrypted_message, valid}
   """
 
   @spec receive_message(ratchet, ratchet, keypair, binary) :: {ratchet, ratchet, binary, boolean}
@@ -116,6 +122,7 @@ defmodule Client do
         keypair,
         recipient_public_key
       ) do
+    # TODO: This should be a message from the server
     encrypted_message = Base.decode64!("WnLgGnWxZC6k5t6TBA==")
 
     signature =

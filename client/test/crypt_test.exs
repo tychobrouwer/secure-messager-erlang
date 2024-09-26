@@ -1,5 +1,6 @@
 defmodule CryptTest do
   use ExUnit.Case, async: true
+  doctest Crypt
 
   require Logger
 

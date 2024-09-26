@@ -14,7 +14,6 @@ defmodule Crypt do
       iex> key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
       iex> iv = Base.decode16!("48EA16CCF2829D493F9ADBADE344F061")
       iex> private_key = Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
-
       iex> {encrypted_message, signature} = Crypt.encrypt_message(message, key, iv, private_key)
       {encrypted_message, signature}
   """
@@ -38,7 +37,6 @@ defmodule Crypt do
         iex> iv = Base.decode16!("48EA16CCF2829D493F9ADBADE344F061")
         iex> foreign_public_key = Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
         iex> signature = Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
-
         iex> {decrypted_message, valid} = Crypt.decrypt_message(encrypted_message, key, iv, foreign_public_key, signature)
         {decrypted_message, valid}
   """
