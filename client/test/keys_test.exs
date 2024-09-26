@@ -2,8 +2,6 @@ defmodule KeysTest do
   use ExUnit.Case, async: true
   doctest Crypt.Keys
 
-  require Logger
-
   test "generate_keypair/0" do
     {public_key, private_key} = Crypt.Keys.generate_keypair()
 
