@@ -5,9 +5,6 @@ defmodule Crypt.Ratchet do
   This module provides functions for generating chain keys.
   """
 
-  require Crypt.Keys
-  require Crypt.Hkdf
-
   @type keypair :: Crypt.Keys.keypair()
   @type ratchet :: %{
           root_key: binary | nil,

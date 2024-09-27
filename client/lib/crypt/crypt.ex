@@ -3,8 +3,6 @@ defmodule Crypt do
   Documentation for `Crypt`.
   """
 
-  require Crypt.Hkdf
-
   @doc """
   Encrypts a message with a key and an initialization vector.
 
