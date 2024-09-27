@@ -9,6 +9,8 @@ defmodule TCPServerTest do
     packet_version = 1
     message = "Hello, world!"
 
-    packet = TCPServer.create_packet(packet_version, packet_type, message)
+    packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
+
+    assert packet == <<1, 0, "Hello, world!">>
   end
 end

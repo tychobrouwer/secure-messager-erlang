@@ -10,8 +10,8 @@ defmodule Server.Application do
 
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
-      {Registry, keys: :unique, name: TCPServer.Registry},
-      Supervisor.child_spec({Task, fn -> TCPServer.connect(address, port) end},
+      {TCPServer, []},
+      Supervisor.child_spec({Task, fn -> TCPServer.Connector.connect(address, port) end},
         restart: :permanent
       )
     ]

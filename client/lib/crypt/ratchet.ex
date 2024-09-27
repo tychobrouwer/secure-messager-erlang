@@ -58,17 +58,6 @@ defmodule Crypt.Ratchet do
     %{root_key: chain_key, child_key: message_key}
   end
 
-  @doc """
-  Generates a root key and chain key from a root key and a DH key.
-
-  ## Examples
-
-      iex> root_key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-      iex> dh_key = Base.decode16!("A1EAF8F96EC553733FC0636C162822AB35F1279F56A1FBB6476FD9838386931F")
-      iex> {root_key, chain_key} = Crypt.Ratchet.kdf_rk(root_key, dh_key)
-      {root_key, chain_key}
-  """
-
   @spec kdf_rk(binary, binary) :: {binary, binary}
   defp kdf_rk(root_key, dh_key) do
     key = Crypt.Hkdf.derive(dh_key, 64, root_key, "r")
@@ -78,16 +67,6 @@ defmodule Crypt.Ratchet do
 
     {root_key, chain_key}
   end
-
-  @doc """
-  Generates a chain key and a message key from a chain key.
-
-  ## Examples
-
-      iex> chain_key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-      iex> {chain_key, message_key} = Crypt.Ratchet.kdf_ck(chain_key)
-      {chain_key, message_key}
-  """
 
   @spec kdf_ck(binary) :: {binary, binary}
   defp kdf_ck(chain_key) do
