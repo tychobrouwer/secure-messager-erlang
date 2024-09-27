@@ -14,7 +14,6 @@ defmodule ClientTest do
     assert byte_size(keypair.public) == 32
     assert byte_size(dh_ratchet.root_key) == 32
     assert dh_ratchet.child_key == nil
-    assert dh_ratchet.iv_key == nil
     assert m_ratchet == nil
   end
 

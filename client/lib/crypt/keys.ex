@@ -42,22 +42,4 @@ defmodule Crypt.Keys do
 
     shared_key
   end
-
-  @doc """
-  Generates a key from a key derivation function.
-
-  ## Examples
-
-      iex> key = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-      iex> length = 80
-      iex> new_key = Crypt.Keys.generate_kdf_secret(key, length)
-      new_key
-  """
-
-  @spec generate_kdf_secret(binary, integer) :: binary
-  def generate_kdf_secret(key, length) do
-    new_key = :crypto.pbkdf2_hmac(:sha256, key, "", 1, length)
-
-    new_key
-  end
 end
