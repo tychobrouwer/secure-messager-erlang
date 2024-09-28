@@ -29,4 +29,14 @@ defmodule TCPServer do
     send(pid, {:send_data, type, message})
     {:reply, :ok, state}
   end
+
+  @impl true
+  def handle_call({:get_connection_pid}, _from, state) do
+    {:reply, Map.get(state, 'tcp_pid'), state}
+  end
+
+  @impl true
+  def handle_call({:get_pid}, _from, state) do
+    {:reply, self(), state}
+  end
 end

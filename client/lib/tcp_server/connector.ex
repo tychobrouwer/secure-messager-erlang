@@ -7,7 +7,7 @@ defmodule TCPServer.Connector do
 
   @spec connect(charlist, integer) :: :ok
   def connect(address, port) do
-    case :gen_tcp.connect(address, port, [:binary, packet: 2, active: false, reuseaddr: true]) do
+    case :gen_tcp.connect(address, port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
         Logger.info("Connection server -> #{address}:#{port}")
 

@@ -1,4 +1,4 @@
-defmodule IntegrationTest do
+defmodule IntegrationTester do
   use ExUnit.Case, async: true
 
   require Logger

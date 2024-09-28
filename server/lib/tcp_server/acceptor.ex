@@ -12,7 +12,7 @@ defmodule TCPServer.Acceptor do
 
   @spec accept(integer) :: :ok
   def accept(port) do
-    case :gen_tcp.listen(port, [:binary, packet: 2, active: false, reuseaddr: true]) do
+    case :gen_tcp.listen(port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
         Logger.info("Accepting connections on port #{port}")
         loop_acceptor(socket)
@@ -29,41 +29,44 @@ defmodule TCPServer.Acceptor do
   defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
 
-    conn_id = Utils.uuid()
+    conn_uuid = Utils.uuid()
 
-    Logger.info("New connection -> uid : #{conn_id}")
+    Logger.info("New connection -> uid : #{conn_uuid}")
 
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
-        DataHandler.send_data(conn_id, :handshake, client)
+        DataHandler.send_data(conn_uuid, :handshake, client)
 
-        loop_serve(client, conn_id)
+        loop_serve(client, conn_uuid)
       end)
 
-    :ok = :gen_tcp.controlling_process(client, pid)
+    case :gen_tcp.controlling_process(client, pid) do
+      :ok -> nil
+      {:error, reason} -> Logger.error("Failed to set controlling process -> #{reason}")
+    end
 
-    GenServer.cast(TCPServer, {:add_connection, conn_id, pid})
+    GenServer.cast(TCPServer, {:add_connection, conn_uuid, pid})
 
     loop_acceptor(socket)
   end
 
   @spec loop_serve(socket, binary) :: :ok
-  defp loop_serve(socket, conn_id) do
+  defp loop_serve(socket, conn_uuid) do
     :inet.setopts(socket, [{:active, :once}])
 
     receive do
       {:tcp, ^socket, data} ->
-        DataHandler.handle_data(data, conn_id)
+        DataHandler.handle_data(data, conn_uuid)
 
       {:tcp_closed, ^socket} ->
         Logger.info("Client connection closed")
-        GenServer.cast(TCPServer, {:remove_connection, conn_id})
+        GenServer.cast(TCPServer, {:remove_connection, conn_uuid})
 
         exit(:normal)
 
       {:tcp_error, ^socket, reason} ->
         Logger.error("TCP error: #{reason}")
-        GenServer.cast(TCPServer, {:remove_connection, conn_id})
+        GenServer.cast(TCPServer, {:remove_connection, conn_uuid})
 
         exit(:error)
 
@@ -74,6 +77,6 @@ defmodule TCPServer.Acceptor do
         nil
     end
 
-    loop_serve(socket, conn_id)
+    loop_serve(socket, conn_uuid)
   end
 end

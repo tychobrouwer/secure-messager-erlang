@@ -1,48 +1,32 @@
-defmodule ClientTest do
+defmodule ClientTester do
   use ExUnit.Case, async: true
+
   doctest Client
+  doctest Client.DHKeys
 
   require Logger
 
-  test "init_client" do
-    recipient_public_key =
-      Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+  test "client" do
+    uuid = "273ffb373a0eaa9d04af09c6930cd0cfc1091117"
 
-    {keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+    GenServer.cast(Client, {:add_contact, uuid, "user1"})
 
-    assert byte_size(keypair.private) == 32
-    assert byte_size(keypair.public) == 32
-    assert byte_size(dh_ratchet.root_key) == 32
-    assert dh_ratchet.child_key == nil
-    assert m_ratchet == nil
-  end
+    contact_uuid = GenServer.call(Client, {:get_contact_uuid, "user1"})
+    contact = GenServer.call(Client, {:get_contact, contact_uuid})
 
-  test "send_message" do
-    recipient_public_key =
-      Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
+    assert contact_uuid == uuid
+    assert contact == %{contact_id: "user1", key_data: []}
 
-    {keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+    GenServer.cast(Client, {:add_contact_key, uuid, "key_data"})
 
-    {dh_ratchet_1, m_ratchet_1, keypair_1} =
-      Client.send_message(
-        "Hello, World!",
-        dh_ratchet,
-        m_ratchet,
-        keypair,
-        recipient_public_key
-      )
+    contact = GenServer.call(Client, {:get_contact, contact_uuid})
 
-    {dh_ratchet_2, m_ratchet_2, keypair_2} =
-      Client.send_message(
-        "Hello, World! 2",
-        dh_ratchet_1,
-        m_ratchet_1,
-        keypair_1,
-        recipient_public_key
-      )
+    assert contact == %{contact_id: "user1", key_data: ["key_data"]}
 
-    assert dh_ratchet_1 == dh_ratchet_2
-    assert m_ratchet_1 != m_ratchet_2
-    assert keypair_1 == keypair_2
+    GenServer.cast(Client, {:remove_contact, uuid})
+
+    contact = GenServer.call(Client, {:get_contact, contact_uuid})
+
+    assert contact == nil
   end
 end

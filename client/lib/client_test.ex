@@ -1,6 +1,6 @@
-defmodule Client do
+defmodule ClientTest do
   @moduledoc """
-  Documentation for `Client`.
+  Documentation for `ClientTest`.
   """
 
   require Logger
@@ -14,7 +14,7 @@ defmodule Client do
   ## Examples
 
       iex> recipient_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
-      iex> {keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
+      iex> {keypair, dh_ratchet, m_ratchet} = ClientTest.init_client(recipient_public_key)
       {keypair, dh_ratchet, m_ratchet}
   """
 
@@ -22,7 +22,7 @@ defmodule Client do
   def init_client(recipient_public_key) do
     keypair = load_keypair()
 
-    # Initialize dh ratchet (TODO this should be 3dh ratchet method)
+    # Initialize dh ratchet (TODO this should be 3dh ratchet method instead of keypair)
     root_key = Crypt.Keys.generate_eddh_secret(keypair, recipient_public_key)
     dh_ratchet = %{root_key: root_key, child_key: nil}
 
@@ -37,7 +37,7 @@ defmodule Client do
 
   ## Examples
 
-      iex> keypair = Client.load_keypair()
+      iex> keypair = ClientTest.load_keypair()
       keypair
   """
 
@@ -58,18 +58,17 @@ defmodule Client do
   ## Examples
 
       iex>recipient_public_key = Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459")
-      iex>{keypair, dh_ratchet, m_ratchet} = Client.init_client(recipient_public_key)
-      iex> {dh_ratchet, m_ratchet, enc_m} = Client.send_message("Hello, World!", dh_ratchet, m_ratchet, keypair, recipient_public_key)
+      iex>{keypair, dh_ratchet, m_ratchet} = ClientTest.init_client(recipient_public_key)
+      iex> {dh_ratchet, m_ratchet, enc_m} = ClientTest.send_message("Hello, World!", dh_ratchet, m_ratchet, keypair, recipient_public_key)
       {dh_ratchet, m_ratchet, enc_m}
   """
+
   @spec send_message(binary, ratchet, ratchet, keypair, binary) :: {ratchet, ratchet, keypair}
   def send_message(message, dh_ratchet, m_ratchet, keypair, recipient_public_key) do
     {dh_ratchet, m_ratchet, keypair} =
       if m_ratchet == nil do
         keypair = Crypt.Keys.generate_keypair()
-
         dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, recipient_public_key)
-
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
 
         {dh_ratchet, m_ratchet, keypair}
@@ -114,13 +113,10 @@ defmodule Client do
     {dh_ratchet, m_ratchet} =
       if m_ratchet == nil do
         dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, recipient_public_key)
-
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
-
         {dh_ratchet, m_ratchet}
       else
         m_ratchet = Crypt.Ratchet.ck_cycle(m_ratchet.root_key)
-
         {dh_ratchet, m_ratchet}
       end
 

@@ -1,4 +1,4 @@
-defmodule KeysTest do
+defmodule KeysTester do
   use ExUnit.Case, async: true
   doctest Crypt.Keys
 

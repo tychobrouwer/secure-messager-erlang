@@ -1,4 +1,4 @@
-defmodule RatchetTest do
+defmodule RatchetTester do
   use ExUnit.Case, async: true
   doctest Crypt.Ratchet
 

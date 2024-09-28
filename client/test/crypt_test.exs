@@ -1,4 +1,4 @@
-defmodule CryptTest do
+defmodule CryptTester do
   use ExUnit.Case, async: true
   doctest Crypt
 

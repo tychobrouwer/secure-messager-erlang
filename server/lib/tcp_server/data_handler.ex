@@ -1,8 +1,10 @@
 defmodule TCPServer.DataHandler do
   require Logger
 
+  alias TCPServer.Utils, as: Utils
+
   @type packet_version :: 1
-  @type packet_type :: :message | :handshake | :handshake_ack | :ack | :error
+  @type packet_type :: TCPServer.Utils.packet_type()
   @type socket :: :inet.socket()
 
   @doc """
@@ -10,23 +12,16 @@ defmodule TCPServer.DataHandler do
   """
 
   @spec handle_data(binary, binary) :: :ok
-  def handle_data(data, conn_id) do
-    <<packet_version::binary-size(1), packet_type::binary-size(1), message::binary>> = data
+  def handle_data(data, conn_uuid) do
+    <<packet_version::binary-size(1), type_bin::binary-size(1), message::binary>> = data
 
-    type =
-      case packet_type do
-        <<0>> -> :message
-        <<1>> -> :handshake
-        <<2>> -> :handshake_ack
-        <<3>> -> :ack
-        <<4>> -> :error
-      end
+    type = Utils.packet_bin_to_atom(type_bin)
 
     Logger.info("Received data -> #{type} : #{data}")
 
     case type do
       :message ->
-        user = GenServer.call(TCPServer, {:get_client_id, conn_id})
+        user = GenServer.call(TCPServer, {:get_client_id, conn_uuid})
 
         # TEST: Send message to the other user
         case user do
@@ -36,8 +31,7 @@ defmodule TCPServer.DataHandler do
         end
 
       :handshake_ack ->
-        pid = self()
-        GenServer.cast(TCPServer, {:update_client, conn_id, pid, message})
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, message})
 
       :ack ->
         nil
@@ -63,7 +57,7 @@ defmodule TCPServer.DataHandler do
         Logger.info("Sent data -> #{type} : #{packet}")
 
       {:error, reason} ->
-        Logger.error("Failed to send data -> #{type} : #{packet}")
+        Logger.error("Failed to send data -> #{type} : #{reason}")
     end
   end
 
@@ -72,16 +66,9 @@ defmodule TCPServer.DataHandler do
   """
 
   @spec create_packet(packet_version, packet_type, binary) :: binary
-  def create_packet(version, packet_type, data) do
-    type =
-      case packet_type do
-        :message -> 0
-        :handshake -> 1
-        :handshake_ack -> 2
-        :ack -> 3
-        :error -> 4
-      end
+  def create_packet(version, type, data) do
+    type_bin = Utils.packet_to_int(type)
 
-    <<version::8, type::8, data::binary>>
+    <<version::8, type_bin::8, data::binary>>
   end
 end
