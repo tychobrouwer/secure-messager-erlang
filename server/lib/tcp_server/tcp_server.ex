@@ -41,12 +41,7 @@ defmodule TCPServer do
   @impl true
   @spec handle_call({:send_data, binary, binary, binary}, any, map) ::
           {:reply, :ok, map} | {:reply, {:error, :not_found}, map}
-  def handle_call({:send_data, client_id, type, message}, _from, state) do
-    conn_uuid =
-      state
-      |> Enum.find(fn {_, conn} -> conn.client_id == client_id end)
-      |> elem(0)
-
+  def handle_call({:send_data, type, conn_uuid, message}, _from, state) do
     case Map.get(state, conn_uuid) do
       %{pid: pid} ->
         send(pid, {:send_data, type, message})

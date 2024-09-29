@@ -31,11 +31,11 @@ defmodule TCPServer.Acceptor do
 
     conn_uuid = Utils.uuid()
 
-    Logger.info("New connection -> uid : #{conn_uuid}")
+    Logger.info("New connection -> uid : #{inspect(conn_uuid)}")
 
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
-        DataHandler.send_data(conn_uuid, :handshake, client)
+        DataHandler.send_data(client, :handshake, conn_uuid, conn_uuid)
 
         loop_serve(client, conn_uuid)
       end)
@@ -71,7 +71,7 @@ defmodule TCPServer.Acceptor do
         exit(:error)
 
       {:send_data, type, message} ->
-        DataHandler.send_data(message, type, socket)
+        DataHandler.send_data(socket, type, conn_uuid, message)
     after
       5000 ->
         nil

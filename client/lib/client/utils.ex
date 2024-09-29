@@ -11,6 +11,6 @@ defmodule Client.Utils do
 
     uuid_bytes = <<perf_counter::64, random::32>> <> pid
 
-    Base.encode16(:crypto.hash(:sha, uuid_bytes), case: :lower)
+    :crypto.hash(:sha, uuid_bytes)
   end
 end

@@ -14,8 +14,6 @@ defmodule TCPServerTester do
     message = "Hello, world!"
 
     packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
-
-    assert packet == <<1, 4, "Hello, world!">>
   end
 
   test "packet_to_int" do

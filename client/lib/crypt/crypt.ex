@@ -19,12 +19,15 @@ defmodule Crypt do
   def encrypt_message(message, message_key, private_key) do
     message = pkcs7_pad(message, 16)
 
-    zero_bytes = :binary.copy(<<0::size(8)>>, 80)
-    hash = Crypt.Hkdf.derive(message_key, 80, zero_bytes, "message_key")
+    salt_size = 80 * 8
+    salt = <<0::size(salt_size)>>
 
-    encryption_key = :binary.part(hash, 0, 32)
-    authentication_key = :binary.part(hash, 32, 32)
-    iv = :binary.part(hash, 64, 16)
+    <<encryption_key::binary-size(32), authentication_key::binary-size(32), iv::binary-size(16)>> =
+      Crypt.Hkdf.derive(message_key, 80, salt, "message_key")
+
+    # encryption_key = :binary.part(hash, 0, 32)
+    # authentication_key = :binary.part(hash, 32, 32)
+    # iv = :binary.part(hash, 64, 16)
 
     associated_data = ""
 

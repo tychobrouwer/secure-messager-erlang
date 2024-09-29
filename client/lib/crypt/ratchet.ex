@@ -11,6 +11,12 @@ defmodule Crypt.Ratchet do
           child_key: binary | nil
         }
 
+  @spec rk_ratchet_init(keypair, binary) :: ratchet
+  def rk_ratchet_init(keypair, foreign_public_key) do
+    root_key = Crypt.Keys.generate_eddh_secret(keypair, foreign_public_key)
+    dh_ratchet = %{root_key: root_key, child_key: nil}
+  end
+
   @doc """
   Initializes a ratchet with a root key.
 

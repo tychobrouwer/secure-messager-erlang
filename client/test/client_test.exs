@@ -2,12 +2,13 @@ defmodule ClientTester do
   use ExUnit.Case, async: true
 
   doctest Client
-  doctest Client.DHKeys
 
   require Logger
 
   test "client" do
-    uuid = "273ffb373a0eaa9d04af09c6930cd0cfc1091117"
+    uuid =
+      <<24, 65, 241, 190, 166, 108, 241, 141, 216, 86, 73, 1, 223, 247, 96, 100, 16, 38, 230, 75,
+        119, 115, 108>>
 
     GenServer.cast(Client, {:add_contact, uuid, "user1"})
 

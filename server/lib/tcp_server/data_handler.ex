@@ -13,31 +13,48 @@ defmodule TCPServer.DataHandler do
 
   @spec handle_data(binary, binary) :: :ok
   def handle_data(data, conn_uuid) do
-    <<packet_version::binary-size(1), type_bin::binary-size(1), message::binary>> = data
+    <<_::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), message::binary>> = data
 
     type = Utils.packet_bin_to_atom(type_bin)
 
-    Logger.info("Received data -> #{type} : #{data}")
+    Logger.info("Received data -> #{type} : #{inspect(data)}")
 
     case type do
-      :message ->
-        user = GenServer.call(TCPServer, {:get_client_id, conn_uuid})
-
-        # TEST: Send message to the other user
-        case user do
-          "user1" -> GenServer.call(TCPServer, {:send_data, "user2", :message, message})
-          "user2" -> GenServer.call(TCPServer, {:send_data, "user1", :message, message})
-          _ -> Logger.error("User not found")
-        end
-
-      :handshake_ack ->
-        GenServer.cast(TCPServer, {:update_connection, conn_uuid, message})
-
       :ack ->
         nil
 
       :error ->
         nil
+
+      :handshake_ack ->
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, message})
+
+      :message ->
+        Logger.info("Received type_bin -> #{inspect(type_bin)}")
+        Logger.info("Received uuid -> #{inspect(uuid)}")
+        Logger.info("Received message -> #{inspect(message)}")
+
+        message_data = :erlang.binary_to_term(message)
+
+        GenServer.call(TCPServer, {:send_data, :message, message_data.recipient_uuid, message})
+
+      # user = GenServer.call(TCPServer, {:get_client_id, conn_uuid})
+
+      # # TEST: Send message to the other user
+      # case user do
+      #   "user1" -> GenServer.call(TCPServer, {:send_data, "user2", :message, message})
+      #   "user2" -> GenServer.call(TCPServer, {:send_data, "user1", :message, message})
+      #   _ -> Logger.error("User not found")
+      # end
+
+      :req_messages ->
+        nil
+
+      :req_public_key ->
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_public_key, uuid, message}
+        )
 
       _ ->
         nil
@@ -48,13 +65,13 @@ defmodule TCPServer.DataHandler do
   Send data to the client.
   """
 
-  @spec send_data(binary, packet_type, socket) :: :ok | {:error, any}
-  def send_data(message, type, socket) do
-    packet = create_packet(1, type, message)
+  @spec send_data(socket, packet_type, binary, binary) :: :ok | {:error, any}
+  def send_data(socket, type, uuid, message) do
+    packet = create_packet(1, type, uuid, message)
 
     case :gen_tcp.send(socket, packet) do
       :ok ->
-        Logger.info("Sent data -> #{type} : #{packet}")
+        Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
         Logger.error("Failed to send data -> #{type} : #{reason}")
@@ -65,10 +82,10 @@ defmodule TCPServer.DataHandler do
   Create a packet from a version, type, and data.
   """
 
-  @spec create_packet(packet_version, packet_type, binary) :: binary
-  def create_packet(version, type, data) do
+  @spec create_packet(packet_version, packet_type, binary, binary) :: binary
+  def create_packet(version, type, uuid, data) do
     type_bin = Utils.packet_to_int(type)
 
-    <<version::8, type_bin::8, data::binary>>
+    <<version::8, type_bin::8>> <> uuid <> <<data::binary>>
   end
 end

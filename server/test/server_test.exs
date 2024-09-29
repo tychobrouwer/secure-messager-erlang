@@ -12,9 +12,13 @@ defmodule TCPServerTest do
     packet_version = 1
     message = "Hello, world!"
 
-    packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
+    uuid =
+      <<25, 251, 5, 68, 225, 101, 142, 114, 82, 218, 225, 245, 123, 118, 35, 152, 47, 46, 211,
+        74>>
 
-    assert packet == <<1, 4, "Hello, world!">>
+    packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, uuid, message)
+
+    assert packet == <<1, 4>> <> uuid <> "Hello, world!"
   end
 
   test "packet_to_int" do
@@ -36,7 +40,7 @@ defmodule TCPServerTest do
   test "uuid" do
     uuid = TCPServer.Utils.uuid()
 
-    assert byte_size(uuid) == 40
+    assert byte_size(uuid) == 20
     assert is_binary(uuid)
   end
 
