@@ -29,16 +29,16 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_uuid}, _from, state) do
-    {:reply, Map.get(state, 'uuid'), state}
-  end
-
-  @impl true
-  def handle_call({:send_data, type, data}, _from, state) do
+  def handle_cast({:send_data, type, data}, state) do
     pid = Map.get(state, 'tcp_pid')
 
     send(pid, {:send_data, type, data})
-    {:reply, :ok, state}
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call({:get_uuid}, _from, state) do
+    {:reply, Map.get(state, 'uuid'), state}
   end
 
   @impl true

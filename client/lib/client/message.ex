@@ -7,7 +7,7 @@ defmodule Client.Message do
 
   @type ratchet :: Crypt.Ratchet.ratchet()
   @type keypair :: Crypt.Keys.keypair()
-  @type contact :: Client.contact()
+  @type contact :: ContactManager.contact()
 
   @doc """
   Send a message to a recipient.
@@ -22,13 +22,13 @@ defmodule Client.Message do
 
   @spec send(binary, binary) :: :ok
   def send(message, recipient_uuid) do
-    keypair = GenServer.call(Client, {:get_contact_own_keypair, recipient_uuid})
-    dh_ratchet = GenServer.call(Client, {:get_contact_dh_ratchet, recipient_uuid})
-    m_ratchet = GenServer.call(Client, {:get_contact_m_ratchet, recipient_uuid})
+    keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, recipient_uuid})
+    dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, recipient_uuid})
+    m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, recipient_uuid})
 
     {dh_ratchet, m_ratchet, keypair} =
       if m_ratchet == nil do
-        recipient_public_key = Client.Contact.get_contact_pub_key(recipient_uuid)
+        recipient_public_key = Contact.get_contact_pub_key(recipient_uuid)
 
         keypair = Crypt.Keys.generate_keypair()
 
@@ -45,7 +45,7 @@ defmodule Client.Message do
       end
 
     GenServer.cast(
-      Client,
+      ContactManager,
       {:update_contact_cycle, recipient_uuid, keypair, dh_ratchet, m_ratchet}
     )
 
@@ -66,27 +66,50 @@ defmodule Client.Message do
       message: encrypted_message
     }
 
-    GenServer.call(TCPServer, {:send_data, :message, :erlang.term_to_binary(data)})
+    GenServer.cast(TCPServer, {:send_data, :message, :erlang.term_to_binary(data)})
   end
 
   @spec receive(binary) :: :ok
   def receive(message) do
     message_data = :erlang.binary_to_term(message)
 
-    Logger.info("Received message -> #{inspect(message_data)}")
+    recipient_uuid = message_data.recipient_uuid
 
-    # def decrypt(encrypted_message, message_tag, foreign_public_key, hash, message_key, private_key) do
+    keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, recipient_uuid})
+    dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, recipient_uuid})
+    m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, recipient_uuid})
+
+    {dh_ratchet, m_ratchet} =
+      if m_ratchet == nil do
+        recipient_public_key = Contact.get_contact_pub_key(recipient_uuid)
+
+        GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
+
+        dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, recipient_public_key)
+        m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
+
+        {dh_ratchet, m_ratchet}
+      else
+        m_ratchet = Crypt.Ratchet.ck_cycle(m_ratchet.root_key)
+
+        {dh_ratchet, m_ratchet}
+      end
+
+    GenServer.cast(
+      ContactManager,
+      {:update_contact_cycle, recipient_uuid, keypair, dh_ratchet, m_ratchet}
+    )
 
     {decrypted_message, valid} =
       Crypt.Message.decrypt(
         message_data.message,
         message_data.tag,
         message_data.public_key,
-        message_data.hash
+        message_data.hash,
+        m_ratchet.child_key,
+        keypair.private
       )
 
-    GenServer.cast(Client, {:update_contact_clear_m_ratchet, message_data.sender_uuid})
-
-    Logger.info("Decrypted message -> #{decrypted_message}")
+    Logger.info("Decrypted message -> #{valid} : #{decrypted_message}")
   end
 end

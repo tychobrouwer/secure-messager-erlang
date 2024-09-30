@@ -89,7 +89,7 @@ defmodule Crypt.Message do
     mac_hash =
       :crypto.mac(:hmac, :sha256, authentication_key, associated_data <> encrypted_message)
 
-    valid = hash == mac_hash
+    valid = hash == mac_hash && tag == message_tag
 
     {message, valid}
 

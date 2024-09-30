@@ -42,7 +42,7 @@ defmodule TCPServer.Acceptor do
 
     case :gen_tcp.controlling_process(client, pid) do
       :ok -> nil
-      {:error, reason} -> Logger.error("Failed to set controlling process -> #{reason}")
+      {:error, reason} -> Logger.warn("Failed to set controlling process -> #{reason}")
     end
 
     GenServer.cast(TCPServer, {:add_connection, conn_uuid, pid})

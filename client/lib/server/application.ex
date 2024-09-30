@@ -8,12 +8,13 @@ defmodule Server.Application do
 
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
-      {Client, []},
+      {ContactManager, []},
       {TCPServer, []},
       Supervisor.child_spec({Task, fn -> TCPServer.Connector.connect(address, port) end},
         restart: :permanent,
         id: TCPConnector
       ),
+      {Client, []},
       Supervisor.child_spec({Task, fn -> Client.loop() end},
         restart: :permanent,
         id: ClientLoop

@@ -44,9 +44,9 @@ defmodule TCPServer do
   end
 
   @impl true
-  @spec handle_cast({:update_public_key, binary, binary}, map) ::
+  @spec handle_cast({:update_client_pub_key, binary, binary}, map) ::
           {:noreply, map} | {:noreply, {:error, :not_found}, map}
-  def handle_cast({:update_public_key, conn_uuid, client_pub_key}, state) do
+  def handle_cast({:update_client_pub_key, conn_uuid, client_pub_key}, state) do
     if Map.has_key?(state, conn_uuid) do
       new_state =
         Map.update!(state, conn_uuid, fn conn ->
@@ -74,19 +74,6 @@ defmodule TCPServer do
   end
 
   @impl true
-  @spec handle_call({:get_client_id, binary}, any, map) :: {:reply, binary, map}
-  def handle_call({:get_client_id, conn_uuid}, _from, state) do
-    case Map.get(state, conn_uuid) do
-      %{client_id: client_id} ->
-        {:reply, client_id, state}
-
-      nil ->
-        {:reply, nil, state}
-    end
-  end
-
-  @impl true
-
   @spec handle_call({:get_client_uuid, binary}, any, map) :: {:reply, binary, map}
   def handle_call({:get_client_uuid, client_id}, _from, state) do
     conn = Enum.find(state, fn {_key, conn} -> conn.client_id == client_id end)
@@ -100,8 +87,21 @@ defmodule TCPServer do
     end
   end
 
-  @spec handle_call({:get_public_key, binary}, any, map) :: {:reply, binary, map}
-  def handle_call({:get_public_key, conn_uuid}, _from, state) do
+  @impl true
+  @spec handle_call({:get_client_id, binary}, any, map) :: {:reply, binary, map}
+  def handle_call({:get_client_id, conn_uuid}, _from, state) do
+    case Map.get(state, conn_uuid) do
+      %{client_id: client_id} ->
+        {:reply, client_id, state}
+
+      nil ->
+        {:reply, nil, state}
+    end
+  end
+
+  @impl true
+  @spec handle_call({:get_client_pub_key, binary}, any, map) :: {:reply, binary, map}
+  def handle_call({:get_client_pub_key, conn_uuid}, _from, state) do
     case Map.get(state, conn_uuid) do
       %{client_pub_key: client_pub_key} ->
         {:reply, client_pub_key, state}
@@ -112,6 +112,7 @@ defmodule TCPServer do
   end
 
   @impl true
+  @spec handle_call({:get_pid, binary}, any, map) :: {:reply, pid, map}
   def handle_call({:get_pid}, _from, state) do
     {:reply, self(), state}
   end

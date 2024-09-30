@@ -12,14 +12,13 @@ defmodule TCPServer.DataHandler do
   """
 
   @spec handle_data(binary) :: :ok
-  def handle_data(data) do
-    <<_::binary-size(1), type_bin::binary-size(1), _::binary-size(20), message::binary>> = data
-
-    # <<version::8, type_bin::8, uuid::20, message::binary>> = data
+  def handle_data(packet_data) do
+    <<_::binary-size(1), type_bin::binary-size(1), _::binary-size(20), data::binary>> =
+      packet_data
 
     type = Utils.packet_bin_to_atom(type_bin)
 
-    Logger.info("Received data -> #{type} : #{inspect(message)}")
+    Logger.info("Received data -> #{type} : #{inspect(data)}")
 
     case type do
       :ack ->
@@ -29,24 +28,26 @@ defmodule TCPServer.DataHandler do
         nil
 
       :handshake ->
-        GenServer.cast(TCPServer, {:set_uuid, message})
+        GenServer.cast(TCPServer, {:set_uuid, data})
 
         user_id = System.get_env("USER")
-        own_keypair = GenServer.call(Client, {:get_own_keypair})
+        own_keypair = GenServer.call(ContactManager, {:get_own_keypair})
 
         res_data = own_keypair.public <> user_id
-        GenServer.call(TCPServer, {:send_data, :handshake_ack, res_data})
+        GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data})
 
       :res_messages ->
-        Logger.info("Received messages -> #{inspect(message)}")
+        Client.Message.receive(data)
 
       :res_uuid ->
         pid = GenServer.call(Client, {:get_loop_pid})
-        send(pid, {:req_uuid_response, message})
+
+        send(pid, {:req_uuid_response, data})
 
       :res_pub_key ->
         pid = GenServer.call(Client, {:get_loop_pid})
-        send(pid, {:req_pub_key_response, message})
+
+        send(pid, {:req_pub_key_response, data})
 
       _ ->
         nil

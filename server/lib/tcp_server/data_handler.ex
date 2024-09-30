@@ -51,7 +51,7 @@ defmodule TCPServer.DataHandler do
         )
 
       :req_pub_key ->
-        public_key = GenServer.call(TCPServer, {:get_public_key, message})
+        public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
 
         GenServer.call(
           TCPServer,
@@ -59,7 +59,7 @@ defmodule TCPServer.DataHandler do
         )
 
       :req_update_pub_key ->
-        GenServer.cast(TCPServer, {:update_public_key, uuid, message})
+        GenServer.cast(TCPServer, {:update_client_pub_key, uuid, message})
 
       _ ->
         nil
