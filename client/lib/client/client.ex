@@ -17,68 +17,60 @@ defmodule Client do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  def loop() do
+    GenServer.cast(Client, {:set_loop_pid, self()})
+
+    if System.get_env("USER") == "user1" do
+      Process.sleep(1000)
+
+      contact_uuid = Client.Contact.add_contact("user2")
+      Client.Message.send("Hello, world!", contact_uuid)
+    end
+
+    loop()
+  end
+
   @impl true
   def init(state) do
     keypair = %{
-      public: Base.decode16("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459"),
-      private: Base.decode16("DF2F4C61B99C25C96B55E1B5C2E04F419D8708248D196C177CF135F075ADFD60")
+      public: Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459"),
+      private: Base.decode16!("DF2F4C61B99C25C96B55E1B5C2E04F419D8708248D196C177CF135F075ADFD60")
     }
 
     state = Map.put(state, "keypair", keypair)
-
-    contact_uuid = ""
-
-    state =
-      Map.put(state, contact_uuid, %{
-        contact_id: "wsl",
-        recipient_pub_key: nil,
-        own_keypair: keypair,
-        dh_ratchet: nil,
-        m_ratchet: nil
-      })
 
     {:ok, state}
   end
 
   @impl true
-  @spec handle_cast({:add_contact, binary, binary}, any) :: {:noreply, map}
-  def handle_cast({:add_contact, contact_uuid, contact_id}, state) do
-    keypair = Map.get(state, "keypair")
+  @spec handle_cast({:set_loop_pid, pid}, any) :: {:noreply, map}
+  def handle_cast({:set_loop_pid, pid}, state) do
+    new_state = Map.put(state, "loop_pid", pid)
+    {:noreply, new_state}
+  end
 
-    GenServer.cast(TCPClient, {:send_data, :req_public_key, contact_uuid})
+  @impl true
+  @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
+  def handle_cast({:add_contact, contact_uuid, contact_id, contact_public_key}, state) do
+    if Map.has_key?(state, contact_uuid) do
+      Logger.warn("Contact already exists")
 
-    new_state = state
-    recipient_public_key = nil
-
-    receive do
-      {:public_key_response, response} ->
-        recipient_public_key = response
-
-        contact = Map.get(state, contact_uuid)
-        new_contact = Map.put(contact, :recipient_pub_key, recipient_public_key)
-
-        new_state = Map.put(new_state, contact_uuid, new_contact)
-
-        Logger.info("Received public key: #{recipient_public_key}")
-
-        {:reply, recipient_public_key, state}
-    after
-      5000 ->
-        Logger.error("Timeout waiting for public key")
-        exit(:timeout)
+      {:noreply, state}
     end
 
-    dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, recipient_public_key)
+    keypair = Map.get(state, "keypair")
+
+    dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, contact_public_key)
 
     contact = %{
       contact_id: contact_id,
-      recipient_pub_key: nil,
+      recipient_pub_key: contact_public_key,
       own_keypair: keypair,
       dh_ratchet: dh_ratchet,
       m_ratchet: nil
     }
 
-    new_state = Map.put(new_state, contact_uuid, contact)
+    new_state = Map.put(state, contact_uuid, contact)
     {:noreply, new_state}
   end
 
@@ -120,10 +112,29 @@ defmodule Client do
   end
 
   @impl true
+  @spec handle_cast({:update_contact_clear_m_ratchet, binary}, any) :: {:noreply, map}
+  def handle_cast({:update_contact_clear_m_ratchet, contact_uuid}, state) do
+    contact = Map.get(state, contact_uuid)
+
+    new_contact = Map.put(contact, :m_ratchet, nil)
+
+    new_state = Map.put(state, contact_uuid, new_contact)
+    {:noreply, new_state}
+  end
+
+  @impl true
   @spec handle_cast({:remove_contact, binary}, any) :: {:noreply, map}
   def handle_cast({:remove_contact, contact_uuid}, state) do
     new_state = Map.delete(state, contact_uuid)
     {:noreply, new_state}
+  end
+
+  @impl true
+  @spec handle_call({:get_own_keypair}, any, map) :: {:reply, keypair, map}
+  def handle_call({:get_own_keypair}, _from, state) do
+    keypair = Map.get(state, "keypair")
+
+    {:reply, keypair, state}
   end
 
   @impl true
@@ -172,5 +183,10 @@ defmodule Client do
   @impl true
   def handle_call({:get_pid}, _from, state) do
     {:reply, self(), state}
+  end
+
+  @impl true
+  def handle_call({:get_loop_pid}, _from, state) do
+    {:reply, Map.get(state, "loop_pid"), state}
   end
 end

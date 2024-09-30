@@ -17,7 +17,7 @@ defmodule CryptTester do
     private_key =
       Base.decode16!("D0AFC93C994CE9052E02E7BB060E8C892ED83F5A0E231972D7197C5133CC3C78")
 
-    {encrypted_message, message_tag, signature} = Crypt.encrypt_message(message, key, private_key)
+    {encrypted_message, message_tag, signature} = Crypt.Message.encrypt(message, key, private_key)
 
     assert Base.encode16(encrypted_message) == encrypted_message_test
     assert Base.encode16(signature) == signature_test

@@ -19,7 +19,7 @@ defmodule TCPServer.DataHandler do
 
     type = Utils.packet_bin_to_atom(type_bin)
 
-    Logger.info("Received data -> #{type} : #{inspect(data)}")
+    Logger.info("Received data -> #{type} : #{inspect(message)}")
 
     case type do
       :ack ->
@@ -32,14 +32,21 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:set_uuid, message})
 
         user_id = System.get_env("USER")
-        GenServer.call(TCPServer, {:send_data, :handshake_ack, user_id})
+        own_keypair = GenServer.call(Client, {:get_own_keypair})
+
+        res_data = own_keypair.public <> user_id
+        GenServer.call(TCPServer, {:send_data, :handshake_ack, res_data})
 
       :res_messages ->
-        nil
+        Logger.info("Received messages -> #{inspect(message)}")
 
-      :res_public_key ->
-        pid = GenServer.call(Client, {:get_pid})
-        send(pid, {:public_key_response, message})
+      :res_uuid ->
+        pid = GenServer.call(Client, {:get_loop_pid})
+        send(pid, {:req_uuid_response, message})
+
+      :res_pub_key ->
+        pid = GenServer.call(Client, {:get_loop_pid})
+        send(pid, {:req_pub_key_response, message})
 
       _ ->
         nil
@@ -54,14 +61,12 @@ defmodule TCPServer.DataHandler do
   def send_data(message, type, socket) do
     packet = create_packet(1, type, message)
 
-    Logger.info("Sending data -> #{type} : #{inspect(packet)}")
-
     case :gen_tcp.send(socket, packet) do
       :ok ->
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
-        Logger.error("Failed to send data -> #{type} : #{reason}")
+        Logger.warn("Failed to send data -> #{type} : #{reason}")
     end
   end
 

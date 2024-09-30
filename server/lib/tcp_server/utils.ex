@@ -7,8 +7,11 @@ defmodule TCPServer.Utils do
           | :message
           | :req_messages
           | :res_messages
-          | :req_public_key
-          | :res_public_key
+          | :req_uuid
+          | :res_uuid
+          | :req_pub_key
+          | :res_pub_key
+          | :req_update_pub_key
 
   @spec uuid() :: binary
   def uuid() do
@@ -31,8 +34,11 @@ defmodule TCPServer.Utils do
       :message -> 4
       :req_messages -> 5
       :res_messages -> 6
-      :req_public_key -> 7
-      :res_public_key -> 8
+      :req_uuid -> 7
+      :res_uuid -> 8
+      :req_pub_key -> 9
+      :res_pub_key -> 10
+      :req_update_pub_key -> 11
     end
   end
 
@@ -46,8 +52,11 @@ defmodule TCPServer.Utils do
       <<4>> -> :message
       <<5>> -> :req_messages
       <<6>> -> :res_messages
-      <<7>> -> :req_public_key
-      <<8>> -> :res_public_key
+      <<7>> -> :req_uuid
+      <<8>> -> :res_uuid
+      <<9>> -> :req_pub_key
+      <<10>> -> :res_pub_key
+      <<11>> -> :req_update_pub_key
     end
   end
 end

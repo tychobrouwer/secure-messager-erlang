@@ -79,7 +79,7 @@ defmodule ClientTest do
       end
 
     {encrypted_message, message_tag, signature} =
-      Crypt.encrypt_message(message, m_ratchet.child_key, keypair.private)
+      Crypt.Message.encrypt(message, m_ratchet.child_key, keypair.private)
 
     # TODO: This should be sent to the server
     Logger.info(

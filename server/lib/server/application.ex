@@ -1,8 +1,6 @@
 defmodule Server.Application do
   @moduledoc false
 
-  require Logger
-
   use Application
 
   @impl true
@@ -12,7 +10,10 @@ defmodule Server.Application do
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
       {TCPServer, []},
-      Supervisor.child_spec({Task, fn -> TCPServer.Acceptor.accept(port) end}, restart: :permanent)
+      Supervisor.child_spec({Task, fn -> TCPServer.Acceptor.accept(port) end},
+        restart: :permanent,
+        id: TCPAcceptor
+      )
     ]
 
     opts = [

@@ -17,7 +17,7 @@ defmodule TCPServer.DataHandler do
 
     type = Utils.packet_bin_to_atom(type_bin)
 
-    Logger.info("Received data -> #{type} : #{inspect(data)}")
+    Logger.info("Received data -> #{type} : #{inspect(message)}")
 
     case type do
       :ack ->
@@ -27,34 +27,39 @@ defmodule TCPServer.DataHandler do
         nil
 
       :handshake_ack ->
-        GenServer.cast(TCPServer, {:update_connection, conn_uuid, message})
+        <<client_pub_key::binary-size(32), client_id::binary>> = message
+
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, client_id, client_pub_key})
 
       :message ->
-        Logger.info("Received type_bin -> #{inspect(type_bin)}")
-        Logger.info("Received uuid -> #{inspect(uuid)}")
-        Logger.info("Received message -> #{inspect(message)}")
-
         message_data = :erlang.binary_to_term(message)
 
-        GenServer.call(TCPServer, {:send_data, :message, message_data.recipient_uuid, message})
-
-      # user = GenServer.call(TCPServer, {:get_client_id, conn_uuid})
-
-      # # TEST: Send message to the other user
-      # case user do
-      #   "user1" -> GenServer.call(TCPServer, {:send_data, "user2", :message, message})
-      #   "user2" -> GenServer.call(TCPServer, {:send_data, "user1", :message, message})
-      #   _ -> Logger.error("User not found")
-      # end
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_messages, message_data.recipient_uuid, message}
+        )
 
       :req_messages ->
         nil
 
-      :req_public_key ->
+      :req_uuid ->
+        requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
+
         GenServer.call(
           TCPServer,
-          {:send_data, :res_public_key, uuid, message}
+          {:send_data, :res_uuid, uuid, requested_uuid}
         )
+
+      :req_pub_key ->
+        public_key = GenServer.call(TCPServer, {:get_public_key, message})
+
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_pub_key, uuid, public_key}
+        )
+
+      :req_update_pub_key ->
+        GenServer.cast(TCPServer, {:update_public_key, uuid, message})
 
       _ ->
         nil
@@ -74,7 +79,7 @@ defmodule TCPServer.DataHandler do
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
-        Logger.error("Failed to send data -> #{type} : #{reason}")
+        Logger.warn("Failed to send data -> #{type} : #{reason}")
     end
   end
 

@@ -29,21 +29,21 @@ defmodule IntegrationTester do
     m3 = "Hello, World!!!"
 
     {enc_m1, tag_1, sign_1} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m1,
         m_ratchet_11_A.child_key,
         keypair_A1.private
       )
 
     {enc_m2, tag_2, sign_2} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m2,
         m_ratchet_12_A.child_key,
         keypair_A1.private
       )
 
     {enc_m3, tag_3, sign_3} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m3,
         m_ratchet_13_A.child_key,
         keypair_A1.private
@@ -118,21 +118,21 @@ defmodule IntegrationTester do
     m6 = "Hello, World!!!!!!"
 
     {enc_m4, tag_4, sign_4} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m4,
         m_ratchet_21_B.child_key,
         keypair_B1.private
       )
 
     {enc_m5, tag_5, sign_5} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m5,
         m_ratchet_22_B.child_key,
         keypair_B1.private
       )
 
     {enc_m6, tag_6, sign_6} =
-      Crypt.encrypt_message(
+      Crypt.Message.encrypt(
         m6,
         m_ratchet_23_B.child_key,
         keypair_B1.private

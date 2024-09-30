@@ -1,8 +1,6 @@
 defmodule Server.Application do
   use Application
 
-  require Logger
-
   @impl true
   def start(_type, _args) do
     port = String.to_integer(System.get_env("PORT") || "4040")
@@ -13,7 +11,12 @@ defmodule Server.Application do
       {Client, []},
       {TCPServer, []},
       Supervisor.child_spec({Task, fn -> TCPServer.Connector.connect(address, port) end},
-        restart: :permanent
+        restart: :permanent,
+        id: TCPConnector
+      ),
+      Supervisor.child_spec({Task, fn -> Client.loop() end},
+        restart: :permanent,
+        id: ClientLoop
       )
     ]
 

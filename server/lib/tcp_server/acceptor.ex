@@ -65,7 +65,7 @@ defmodule TCPServer.Acceptor do
         exit(:normal)
 
       {:tcp_error, ^socket, reason} ->
-        Logger.error("TCP error: #{reason}")
+        Logger.warn("TCP error: #{reason}")
         GenServer.cast(TCPServer, {:remove_connection, conn_uuid})
 
         exit(:error)

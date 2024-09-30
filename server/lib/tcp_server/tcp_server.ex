@@ -23,13 +23,34 @@ defmodule TCPServer do
   end
 
   @impl true
-  @spec handle_cast({:update_connection, binary, binary}, map) ::
+  @spec handle_cast({:update_connection, binary, binary, binary}, map) ::
           {:noreply, map} | {:noreply, {:error, :not_found}, map}
-  def handle_cast({:update_connection, conn_uuid, client_id}, state) do
+  def handle_cast({:update_connection, conn_uuid, client_id, client_pub_key}, state) do
     if Map.has_key?(state, conn_uuid) do
       new_state =
         Map.update!(state, conn_uuid, fn conn ->
           Map.put(conn, :client_id, client_id)
+        end)
+
+      new_state =
+        Map.update!(new_state, conn_uuid, fn conn ->
+          Map.put(conn, :client_pub_key, client_pub_key)
+        end)
+
+      {:noreply, new_state}
+    else
+      {:noreply, {:error, :not_found}, state}
+    end
+  end
+
+  @impl true
+  @spec handle_cast({:update_public_key, binary, binary}, map) ::
+          {:noreply, map} | {:noreply, {:error, :not_found}, map}
+  def handle_cast({:update_public_key, conn_uuid, client_pub_key}, state) do
+    if Map.has_key?(state, conn_uuid) do
+      new_state =
+        Map.update!(state, conn_uuid, fn conn ->
+          Map.put(conn, :client_pub_key, client_pub_key)
         end)
 
       {:noreply, new_state}
@@ -58,6 +79,32 @@ defmodule TCPServer do
     case Map.get(state, conn_uuid) do
       %{client_id: client_id} ->
         {:reply, client_id, state}
+
+      nil ->
+        {:reply, nil, state}
+    end
+  end
+
+  @impl true
+
+  @spec handle_call({:get_client_uuid, binary}, any, map) :: {:reply, binary, map}
+  def handle_call({:get_client_uuid, client_id}, _from, state) do
+    conn = Enum.find(state, fn {_key, conn} -> conn.client_id == client_id end)
+
+    case conn do
+      {conn_uuid, conn} ->
+        {:reply, conn_uuid, state}
+
+      nil ->
+        {:reply, nil, state}
+    end
+  end
+
+  @spec handle_call({:get_public_key, binary}, any, map) :: {:reply, binary, map}
+  def handle_call({:get_public_key, conn_uuid}, _from, state) do
+    case Map.get(state, conn_uuid) do
+      %{client_pub_key: client_pub_key} ->
+        {:reply, client_pub_key, state}
 
       nil ->
         {:reply, nil, state}
