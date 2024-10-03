@@ -24,7 +24,7 @@ defmodule TCPServer.Utils do
     :crypto.hash(:sha, uuid_bytes)
   end
 
-  @spec packet_to_int(packet_type) :: binary
+  @spec packet_to_int(packet_type) :: integer
   def packet_to_int(type) do
     case type do
       :ack -> 0

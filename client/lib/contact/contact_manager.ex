@@ -50,7 +50,7 @@ defmodule ContactManager do
   @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
   def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state) do
     if Map.has_key?(state, contact_uuid) do
-      Logger.warn("Contact already exists")
+      Logger.warning("Contact already exists")
 
       {:noreply, state}
     end
@@ -154,9 +154,15 @@ defmodule ContactManager do
   def handle_call({:get_contact_pub_key, contact_uuid}, _from, state) do
     contact = Map.get(state, contact_uuid)
 
-    recipient_public_key = contact.recipient_pub_key
+    if contact == nil do
+      {:reply, nil, state}
+    else
+      Logger.info(inspect(contact))
 
-    {:reply, recipient_public_key, state}
+      contact_public_key = contact.contact_pub_key
+
+      {:reply, contact_public_key, state}
+    end
   end
 
   @impl true

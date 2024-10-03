@@ -42,7 +42,7 @@ defmodule TCPServer.Acceptor do
 
     case :gen_tcp.controlling_process(client, pid) do
       :ok -> nil
-      {:error, reason} -> Logger.warn("Failed to set controlling process -> #{reason}")
+      {:error, reason} -> Logger.warning("Failed to set controlling process -> #{reason}")
     end
 
     GenServer.cast(TCPServer, {:add_connection, conn_uuid, pid})
@@ -65,7 +65,7 @@ defmodule TCPServer.Acceptor do
         exit(:normal)
 
       {:tcp_error, ^socket, reason} ->
-        Logger.warn("TCP error: #{reason}")
+        Logger.warning("TCP error: #{reason}")
         GenServer.cast(TCPServer, {:remove_connection, conn_uuid})
 
         exit(:error)

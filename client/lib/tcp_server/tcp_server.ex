@@ -12,25 +12,25 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:set_uuid, uuid}, state) do
-    new_state = Map.put(state, 'uuid', uuid)
+    new_state = Map.put(state, "uuid", uuid)
     {:noreply, new_state}
   end
 
   @impl true
   def handle_cast({:add_connection, pid}, state) do
-    new_state = Map.put(state, 'tcp_pid', pid)
+    new_state = Map.put(state, "tcp_pid", pid)
     {:noreply, new_state}
   end
 
   @impl true
   def handle_cast({:remove_connection}, state) do
-    new_state = Map.delete(state, 'tcp_pid')
+    new_state = Map.delete(state, "tcp_pid")
     {:noreply, new_state}
   end
 
   @impl true
   def handle_cast({:send_data, type, data}, state) do
-    pid = Map.get(state, 'tcp_pid')
+    pid = Map.get(state, "tcp_pid")
 
     send(pid, {:send_data, type, data})
     {:noreply, state}
@@ -38,12 +38,12 @@ defmodule TCPServer do
 
   @impl true
   def handle_call({:get_uuid}, _from, state) do
-    {:reply, Map.get(state, 'uuid'), state}
+    {:reply, Map.get(state, "uuid"), state}
   end
 
   @impl true
   def handle_call({:get_connection_pid}, _from, state) do
-    {:reply, Map.get(state, 'tcp_pid'), state}
+    {:reply, Map.get(state, "tcp_pid"), state}
   end
 
   @impl true

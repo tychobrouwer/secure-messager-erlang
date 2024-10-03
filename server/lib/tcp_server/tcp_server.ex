@@ -79,7 +79,7 @@ defmodule TCPServer do
     conn = Enum.find(state, fn {_key, conn} -> conn.client_id == client_id end)
 
     case conn do
-      {conn_uuid, conn} ->
+      {conn_uuid, _} ->
         {:reply, conn_uuid, state}
 
       nil ->

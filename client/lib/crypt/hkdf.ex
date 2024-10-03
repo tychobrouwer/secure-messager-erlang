@@ -24,38 +24,15 @@ defmodule Crypt.Hkdf do
     okm
   end
 
-  @doc """
-  Extracts a pseudorandom key from an input key material.
-
-  ## Examples
-
-      iex> input = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-      iex> salt = Base.decode16!("48EA16CCF2829D493F9ADBADE344F061")
-      iex> prk = Crypt.Hkdf.extract(input, salt)
-      prk
-  """
-
   @spec extract(binary, binary) :: binary
-  defp extract(input, salt \\ "") do
+  defp extract(input, salt) do
     prk = :crypto.mac(:hmac, :sha512, salt, input)
 
     prk
   end
 
-  @doc """
-  Expands a pseudorandom key to a desired length.
-
-  ## Examples
-
-      iex> prk = Base.decode16!("784587B71309D1C4774F6FDF9FE5160753C40EF67F145CA62177C6CA36C2151D")
-      iex> info = "info"
-      iex> length = 32
-      iex> key = Crypt.Hkdf.expand(prk, info, length)
-      key
-  """
-
   @spec expand(binary, binary, integer) :: binary
-  def expand(prk, info, length) do
+  defp expand(prk, info, length) do
     hash_length = 64
 
     n = Float.ceil(length / hash_length) |> round()

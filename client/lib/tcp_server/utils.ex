@@ -13,7 +13,7 @@ defmodule TCPServer.Utils do
           | :res_pub_key
           | :req_update_pub_key
 
-  @spec packet_to_int(packet_type) :: binary
+  @spec packet_to_int(packet_type) :: integer
   def packet_to_int(type) do
     case type do
       :ack -> 0

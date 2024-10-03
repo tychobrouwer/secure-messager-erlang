@@ -34,13 +34,13 @@ defmodule TCPServer.Connector do
         DataHandler.handle_data(data)
 
       {:tcp_closed, ^socket} ->
-        Logger.warn("Connection closed")
+        Logger.warning("Connection closed")
         GenServer.cast(TCPServer, {:remove_connection})
 
         exit(:disconnect)
 
       {:tcp_error, ^socket, reason} ->
-        Logger.warn("TCP Error: #{reason}")
+        Logger.warning("TCP Error: #{reason}")
         GenServer.cast(TCPServer, {:remove_connection})
 
         exit(:error)

@@ -49,8 +49,7 @@ defmodule Client.Message do
       {:update_contact_cycle, recipient_uuid, keypair, dh_ratchet, m_ratchet}
     )
 
-    {encrypted_message, message_tag, mac_hash} =
-      Crypt.Message.encrypt(message, m_ratchet.child_key, keypair.private)
+    {encrypted_message, message_tag, mac_hash} = Crypt.Message.encrypt(message, m_ratchet.child_key)
 
     Logger.info(
       "encrpyted message send: \"#{Base.encode64(encrypted_message)}\", message tag: \"#{Base.encode64(message_tag)}\", signature: \"#{Base.encode64(mac_hash)}\""
@@ -75,17 +74,25 @@ defmodule Client.Message do
 
     recipient_uuid = message_data.recipient_uuid
 
+    stored_recipient_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, recipient_uuid}) 
+    
+    if stored_recipient_pub_key == nil do
+      Contact.create_contact(message_data.sender_uuid, message_data.public_key)      
+    end 
+
     keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, recipient_uuid})
     dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, recipient_uuid})
     m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, recipient_uuid})
 
-    {dh_ratchet, m_ratchet} =
-      if m_ratchet == nil do
-        recipient_public_key = Contact.get_contact_pub_key(recipient_uuid)
+    Logger.info(inspect(dh_ratchet))
 
+    stored_recipient_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, recipient_uuid}) 
+
+    {dh_ratchet, m_ratchet} =
+      if dh_ratchet == nil || stored_recipient_pub_key != message_data.public_key do
         GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
 
-        dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, recipient_public_key)
+        dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, message_data.public_key)
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
 
         {dh_ratchet, m_ratchet}
@@ -104,10 +111,8 @@ defmodule Client.Message do
       Crypt.Message.decrypt(
         message_data.message,
         message_data.tag,
-        message_data.public_key,
         message_data.hash,
-        m_ratchet.child_key,
-        keypair.private
+        m_ratchet.child_key
       )
 
     Logger.info("Decrypted message -> #{valid} : #{decrypted_message}")

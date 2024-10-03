@@ -79,7 +79,7 @@ defmodule TCPServer.DataHandler do
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
-        Logger.warn("Failed to send data -> #{type} : #{reason}")
+        Logger.warning("Failed to send data -> #{type} : #{reason}")
     end
   end
 
