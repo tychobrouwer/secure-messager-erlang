@@ -157,8 +157,6 @@ defmodule ContactManager do
     if contact == nil do
       {:reply, nil, state}
     else
-      Logger.info(inspect(contact))
-
       contact_public_key = contact.contact_pub_key
 
       {:reply, contact_public_key, state}

@@ -44,6 +44,9 @@ defmodule TCPServer.DataHandler do
 
       :req_uuid ->
         requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
+        
+        Logger.info(inspect(requested_uuid))
+        Logger.info(inspect(uuid))
 
         GenServer.call(
           TCPServer,
@@ -72,6 +75,8 @@ defmodule TCPServer.DataHandler do
 
   @spec send_data(socket, packet_type, binary, binary) :: :ok | {:error, any}
   def send_data(socket, type, uuid, message) do
+    Logger.info(inspect(message))
+
     packet = create_packet(1, type, uuid, message)
 
     case :gen_tcp.send(socket, packet) do

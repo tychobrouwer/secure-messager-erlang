@@ -15,9 +15,24 @@ defmodule Client do
 
       contact_uuid = Contact.add_contact("user2")
       Client.Message.send("Hello, world!", contact_uuid)
+
+      Process.sleep(1000)
+
+      contact_uuid = Contact.add_contact("user2")
+      Client.Message.send("Hello, world!", contact_uuid)
+      #else
+
+      #  contact_uuid = Contact.add_contact("user1")
+      #  Client.Message.send("Hello, world!", contact_uuid)
+
+      #  Process.sleep(1000)
+
+      #  contact_uuid = Contact.add_contact("user1")
+      #  Client.Message.send("Hello, world!", contact_uuid)
     end
 
-    loop()
+        Process.sleep(100000)
+    #loop()
   end
 
   @impl true

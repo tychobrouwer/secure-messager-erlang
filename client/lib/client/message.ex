@@ -32,7 +32,9 @@ defmodule Client.Message do
 
         keypair = Crypt.Keys.generate_keypair()
 
-        GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
+        #GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
+
+        Logger.info("dh_ratchet: \"#{inspect(dh_ratchet)}\"")
 
         dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, recipient_public_key)
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
@@ -51,10 +53,6 @@ defmodule Client.Message do
 
     {encrypted_message, message_tag, mac_hash} = Crypt.Message.encrypt(message, m_ratchet.child_key)
 
-    Logger.info(
-      "encrpyted message send: \"#{Base.encode64(encrypted_message)}\", message tag: \"#{Base.encode64(message_tag)}\", signature: \"#{Base.encode64(mac_hash)}\""
-    )
-
     data = %{
       sender_uuid: GenServer.call(TCPServer, {:get_uuid}),
       recipient_uuid: recipient_uuid,
@@ -72,25 +70,25 @@ defmodule Client.Message do
   def receive(message) do
     message_data = :erlang.binary_to_term(message)
 
-    recipient_uuid = message_data.recipient_uuid
+    sender_uuid = message_data.sender_uuid
 
-    stored_recipient_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, recipient_uuid}) 
+    stored_sender_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, sender_uuid}) 
     
-    if stored_recipient_pub_key == nil do
+    if stored_sender_pub_key == nil do
       Contact.create_contact(message_data.sender_uuid, message_data.public_key)      
     end 
 
-    keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, recipient_uuid})
-    dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, recipient_uuid})
-    m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, recipient_uuid})
+    keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, sender_uuid})
+    dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, sender_uuid})
+    m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, sender_uuid})
 
-    Logger.info(inspect(dh_ratchet))
-
-    stored_recipient_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, recipient_uuid}) 
+    stored_sender_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, sender_uuid})
 
     {dh_ratchet, m_ratchet} =
-      if dh_ratchet == nil || stored_recipient_pub_key != message_data.public_key do
+      if m_ratchet == nil || stored_sender_pub_key != message_data.public_key do
         GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
+
+        Logger.info("dh_ratchet: \"#{inspect(dh_ratchet)}\"")
 
         dh_ratchet = Crypt.Ratchet.rk_cycle(dh_ratchet, keypair, message_data.public_key)
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
@@ -104,7 +102,7 @@ defmodule Client.Message do
 
     GenServer.cast(
       ContactManager,
-      {:update_contact_cycle, recipient_uuid, keypair, dh_ratchet, m_ratchet}
+      {:update_contact_cycle, sender_uuid, keypair, dh_ratchet, m_ratchet}
     )
 
     {decrypted_message, valid} =

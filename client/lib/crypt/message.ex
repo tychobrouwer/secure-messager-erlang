@@ -2,6 +2,7 @@ defmodule Crypt.Message do
   @moduledoc """
   Documentation for `Crypt`.
   """
+require Logger
 
   @doc """
   Encrypts a message with a key and an initialization vector.
@@ -24,6 +25,10 @@ defmodule Crypt.Message do
     <<encryption_key::binary-size(32), authentication_key::binary-size(32), iv::binary-size(16)>> =
       Crypt.Hkdf.derive(message_key, 80, salt, "message_key")
 
+    Logger.info(
+      "message key: \"#{Base.encode64(message_key)}\""
+    )
+
     associated_data = ""
 
     {encrypted_message, message_tag} =
@@ -35,6 +40,10 @@ defmodule Crypt.Message do
         associated_data,
         true
       )
+
+    Logger.info(
+      "encrypted message: \"#{Base.encode64(encrypted_message)}\", key: \"#{Base.encode64(encryption_key)}\", iv: \"#{Base.encode64(iv)}\", associated data: \"#{Base.encode64(associated_data)}\", message tag \"#{Base.encode64(message_tag)}\""
+    )
 
     mac_hash =
       :crypto.mac(:hmac, :sha256, authentication_key, associated_data <> encrypted_message)
@@ -66,22 +75,39 @@ defmodule Crypt.Message do
     <<encryption_key::binary-size(32), authentication_key::binary-size(32), iv::binary-size(16)>> =
       Crypt.Hkdf.derive(message_key, 80, salt, "message_key")
 
-    {message, tag} =
-      :crypto.crypto_one_time_aead(
+
+    Logger.info(
+      "message key: \"#{Base.encode64(message_key)}\""
+    )
+
+    decrypt_result = :crypto.crypto_one_time_aead(
         :aes_256_gcm,
         encryption_key,
         iv,
         encrypted_message,
         associated_data,
+        message_tag,
         false
       )
+
+    Logger.info(
+      "encrypted message: \"#{Base.encode64(encrypted_message)}\", key: \"#{Base.encode64(encryption_key)}\", iv: \"#{Base.encode64(iv)}\", associated data: \"#{Base.encode64(associated_data)}\", message tag \"#{Base.encode64(message_tag)}\""
+    )
+
+    {message, tag} = case decrypt_result do
+      {padded_message, tag} ->
+        message = pkcs7_unpad(padded_message)
+
+        {message, tag}
+      decrypt_error ->
+        Logger.warning(inspect(decrypt_error))
+        {~c"", ~c""}
+    end
 
     mac_hash =
       :crypto.mac(:hmac, :sha256, authentication_key, associated_data <> encrypted_message)
 
     valid = hash == mac_hash && tag == message_tag
-    
-    message = pkcs7_unpad(message)
 
     {message, valid}
   end
