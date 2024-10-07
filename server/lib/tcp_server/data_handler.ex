@@ -54,7 +54,11 @@ defmodule TCPServer.DataHandler do
         )
 
       :req_pub_key ->
+        Logger.info("requesting PUBLIC KEY")
+
         public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
+
+        Logger.info("public_key: #{inspect(public_key)}")
 
         GenServer.call(
           TCPServer,
@@ -75,8 +79,6 @@ defmodule TCPServer.DataHandler do
 
   @spec send_data(socket, packet_type, binary, binary) :: :ok | {:error, any}
   def send_data(socket, type, uuid, message) do
-    Logger.info(inspect(message))
-
     packet = create_packet(1, type, uuid, message)
 
     case :gen_tcp.send(socket, packet) do

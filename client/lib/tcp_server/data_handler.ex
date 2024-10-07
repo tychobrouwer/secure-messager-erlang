@@ -37,7 +37,10 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data})
 
       :res_messages ->
-        Client.Message.receive(data)
+        #Client.Message.receive(data)
+        #GenServer.call(Client, {:receive_message, data})
+        Task.async(fn -> GenServer.cast(Client, {:receive_message, data}) end)
+        Logger.info("after calling receive message")
 
       :res_uuid ->
         pid = GenServer.call(Client, {:get_loop_pid})

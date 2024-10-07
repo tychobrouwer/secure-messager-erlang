@@ -12,18 +12,21 @@ defmodule Contact do
   @spec add_contact(binary) :: binary
   def add_contact(contact_id) do
     contact_uuid = get_contact_uuid(contact_id)
-    contact_pub_key = get_contact_pub_key(contact_uuid)
 
-    GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
-
-    contact_uuid
+    add_contact_with_uuid(contact_uuid, contact_id)
   end
 
-  @spec create_contact(binary, binary) :: binary
-  def create_contact(contact_uuid, contact_pub_key) do
-    contact_id = "temp"
+  @spec add_contact_with_uuid(binary) :: binary
+  def add_contact_with_uuid(contact_uuid, contact_id \\ "") do
+    if !GenServer.call(ContactManager, {:check_contact_exists, contact_uuid}) do
+      Logger.info("contact_uuid: #{inspect(contact_uuid)}")
 
-    GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
+      contact_pub_key = get_contact_pub_key(contact_uuid)
+      
+      Logger.info("contact_uuid: #{inspect(contact_pub_key)}")
+
+      GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
+    end
 
     contact_uuid
   end
@@ -44,7 +47,10 @@ defmodule Contact do
 
   @spec get_contact_pub_key(binary) :: binary
   def get_contact_pub_key(contact_uuid) do
+    Logger.info("before sendsendsendsend")
     GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid})
+    
+    Logger.info("sendsendsendsend")
 
     receive do
       {:req_pub_key_response, response} ->

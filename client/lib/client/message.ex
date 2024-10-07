@@ -72,20 +72,16 @@ defmodule Client.Message do
 
     sender_uuid = message_data.sender_uuid
 
-    stored_sender_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, sender_uuid}) 
-    
-    if stored_sender_pub_key == nil do
-      Contact.create_contact(message_data.sender_uuid, message_data.public_key)      
-    end 
+    Contact.add_contact_with_uuid(sender_uuid)
 
     keypair = GenServer.call(ContactManager, {:get_contact_own_keypair, sender_uuid})
     dh_ratchet = GenServer.call(ContactManager, {:get_contact_dh_ratchet, sender_uuid})
     m_ratchet = GenServer.call(ContactManager, {:get_contact_m_ratchet, sender_uuid})
 
-    stored_sender_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, sender_uuid})
+    last_pub_key = GenServer.call(ContactManager, {:get_contact_pub_key, sender_uuid}) 
 
     {dh_ratchet, m_ratchet} =
-      if m_ratchet == nil || stored_sender_pub_key != message_data.public_key do
+      if m_ratchet == nil || last_pub_key != message_data.public_key do
         GenServer.cast(TCPServer, {:send_data, :req_update_pub_key, keypair.public})
 
         Logger.info("dh_ratchet: \"#{inspect(dh_ratchet)}\"")

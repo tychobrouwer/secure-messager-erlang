@@ -131,6 +131,16 @@ defmodule ContactManager do
   end
 
   @impl true
+  @spec handle_call({:check_contact_exists, binary}, any, map) :: {:reply, keypair, map}
+  def handle_call({:check_contact_exists, contact_uuid}, _from, state) do
+    if Map.has_key?(state, contact_uuid) do
+      {:reply, true, state}
+    else
+      {:reply, false, state}
+    end
+  end
+
+  @impl true
   @spec handle_call({:get_own_keypair}, any, map) :: {:reply, keypair, map}
   def handle_call({:get_own_keypair}, _from, state) do
     keypair = Map.get(state, "keypair")
@@ -181,6 +191,8 @@ defmodule ContactManager do
     contact = Map.get(state, contact_uuid)
 
     if contact == nil do
+      Logger.error("contact not added correctly?")
+
       {:reply, nil, state}
     else
       {:reply, contact.dh_ratchet, state}
