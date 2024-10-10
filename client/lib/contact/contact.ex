@@ -41,10 +41,10 @@ defmodule Contact do
   end
 
   @spec async_do(fun) :: any
-  def async_do(fun) do
+  defp async_do(fun) do
     task =
       Task.async(fn ->
-        GenServer.cast(ContactManager, {:set_receive_pid, self})
+        GenServer.cast(ContactManager, {:set_receive_pid, self()})
 
         fun.()
       end)
@@ -53,7 +53,7 @@ defmodule Contact do
   end
 
   @spec get_uuid(binary) :: binary
-  def get_uuid(contact_id) do
+  defp get_uuid(contact_id) do
     GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id})
 
     receive do
@@ -67,7 +67,7 @@ defmodule Contact do
   end
 
   @spec get_id(binary) :: binary
-  def get_id(contact_uuid) do
+  defp get_id(contact_uuid) do
     GenServer.cast(TCPServer, {:send_data, :req_id, contact_uuid})
 
     receive do
@@ -81,7 +81,7 @@ defmodule Contact do
   end
 
   @spec get_pub_key(binary) :: binary
-  def get_pub_key(contact_uuid) do
+  defp get_pub_key(contact_uuid) do
     GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid})
 
     receive do
