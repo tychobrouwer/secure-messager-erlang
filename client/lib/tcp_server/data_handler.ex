@@ -31,25 +31,26 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:set_uuid, data})
 
         user_id = System.get_env("USER")
-        own_keypair = GenServer.call(ContactManager, {:get_own_keypair})
+        own_keypair = GenServer.call(ContactManager, {:get_keypair})
 
         res_data = own_keypair.public <> user_id
         GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data})
 
       :res_messages ->
-        #Client.Message.receive(data)
-        #GenServer.call(Client, {:receive_message, data})
-        Task.async(fn -> GenServer.cast(Client, {:receive_message, data}) end)
-        Logger.info("after calling receive message")
+        Task.async(fn ->
+          Client.Message.receive(data)
+        end)
 
       :res_uuid ->
-        pid = GenServer.call(Client, {:get_loop_pid})
-
+        pid = GenServer.call(ContactManager, {:get_receive_pid})
         send(pid, {:req_uuid_response, data})
 
-      :res_pub_key ->
-        pid = GenServer.call(Client, {:get_loop_pid})
+      :res_id ->
+        pid = GenServer.call(ContactManager, {:get_receive_pid})
+        send(pid, {:req_id_response, data})
 
+      :res_pub_key ->
+        pid = GenServer.call(ContactManager, {:get_receive_pid})
         send(pid, {:req_pub_key_response, data})
 
       _ ->

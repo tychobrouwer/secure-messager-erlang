@@ -2,7 +2,7 @@ defmodule Crypt.Message do
   @moduledoc """
   Documentation for `Crypt`.
   """
-require Logger
+  require Logger
 
   @doc """
   Encrypts a message with a key and an initialization vector.
@@ -25,9 +25,7 @@ require Logger
     <<encryption_key::binary-size(32), authentication_key::binary-size(32), iv::binary-size(16)>> =
       Crypt.Hkdf.derive(message_key, 80, salt, "message_key")
 
-    Logger.info(
-      "message key: \"#{Base.encode64(message_key)}\""
-    )
+    Logger.info("message key: \"#{Base.encode64(message_key)}\"")
 
     associated_data = ""
 
@@ -75,12 +73,10 @@ require Logger
     <<encryption_key::binary-size(32), authentication_key::binary-size(32), iv::binary-size(16)>> =
       Crypt.Hkdf.derive(message_key, 80, salt, "message_key")
 
+    Logger.info("message key: \"#{Base.encode64(message_key)}\"")
 
-    Logger.info(
-      "message key: \"#{Base.encode64(message_key)}\""
-    )
-
-    decrypt_result = :crypto.crypto_one_time_aead(
+    decrypt_result =
+      :crypto.crypto_one_time_aead(
         :aes_256_gcm,
         encryption_key,
         iv,
@@ -94,20 +90,23 @@ require Logger
       "encrypted message: \"#{Base.encode64(encrypted_message)}\", key: \"#{Base.encode64(encryption_key)}\", iv: \"#{Base.encode64(iv)}\", associated data: \"#{Base.encode64(associated_data)}\", message tag \"#{Base.encode64(message_tag)}\""
     )
 
-    {message, tag} = case decrypt_result do
-      {padded_message, tag} ->
-        message = pkcs7_unpad(padded_message)
+    message =
+      case decrypt_result do
+        :error ->
+          Logger.error("Failed to decrypt message")
 
-        {message, tag}
-      decrypt_error ->
-        Logger.warning(inspect(decrypt_error))
-        {~c"", ~c""}
-    end
+          ~c""
+
+        padded_message ->
+          Logger.info("decrypted message: \"#{pkcs7_unpad(padded_message)}\"")
+
+          pkcs7_unpad(padded_message)
+      end
 
     mac_hash =
       :crypto.mac(:hmac, :sha256, authentication_key, associated_data <> encrypted_message)
 
-    valid = hash == mac_hash && tag == message_tag
+    valid = hash == mac_hash
 
     {message, valid}
   end

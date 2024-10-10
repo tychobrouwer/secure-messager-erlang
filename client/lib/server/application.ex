@@ -4,7 +4,7 @@ defmodule Server.Application do
   @impl true
   def start(_type, _args) do
     port = String.to_integer(System.get_env("PORT") || "4040")
-    address = ~c"127.0.0.1" 
+    address = ~c"127.0.0.1"
 
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
@@ -14,11 +14,11 @@ defmodule Server.Application do
         restart: :permanent,
         id: TCPConnector
       ),
-      {Client, []},
-      Supervisor.child_spec({Task, fn -> Client.loop() end},
-        restart: :permanent,
-        id: ClientLoop
-      )
+      {Client, []}
+      # Supervisor.child_spec({Task, fn -> Client.loop() end},
+      #   restart: :permanent,
+      #   id: ClientLoop
+      # )
     ]
 
     opts = [

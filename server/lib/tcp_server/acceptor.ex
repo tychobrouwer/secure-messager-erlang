@@ -56,7 +56,6 @@ defmodule TCPServer.Acceptor do
 
     receive do
       {:tcp, ^socket, data} ->
-        Logger.info("GOTTEN DATA")
         DataHandler.handle_data(data, conn_uuid)
 
       {:tcp_closed, ^socket} ->

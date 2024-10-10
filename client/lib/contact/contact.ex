@@ -9,21 +9,30 @@ defmodule Contact do
   @type keypair :: Crypt.Keys.keypair()
   @type contact :: ContactManager.contact()
 
-  @spec add_contact(binary) :: binary
-  def add_contact(contact_id) do
-    contact_uuid = get_contact_uuid(contact_id)
+  @spec add_contact(binary | nil, binary | nil) :: binary
+  def add_contact(contact_uuid, contact_id) do
+    {contact_id, contact_uuid} =
+      case {contact_id, contact_uuid} do
+        {nil, nil} ->
+          Logger.error("No contact id or uuid provided")
+          exit(:no_contact_id_or_uuid)
 
-    add_contact_with_uuid(contact_uuid, contact_id)
-  end
+        {nil, contact_uuid} ->
+          contact_id = async_do(fn -> get_id(contact_uuid) end)
 
-  @spec add_contact_with_uuid(binary) :: binary
-  def add_contact_with_uuid(contact_uuid, contact_id \\ "") do
-    if !GenServer.call(ContactManager, {:check_contact_exists, contact_uuid}) do
-      Logger.info("contact_uuid: #{inspect(contact_uuid)}")
+          {contact_id, contact_uuid}
 
-      contact_pub_key = get_contact_pub_key(contact_uuid)
-      
-      Logger.info("contact_uuid: #{inspect(contact_pub_key)}")
+        {contact_id, nil} ->
+          contact_uuid = async_do(fn -> get_uuid(contact_id) end)
+
+          {contact_id, contact_uuid}
+
+        {contact_id, contact_uuid} ->
+          {contact_id, contact_uuid}
+      end
+
+    if GenServer.call(ContactManager, {:get_contact, contact_uuid}) == nil do
+      contact_pub_key = async_do(fn -> get_pub_key(contact_uuid) end)
 
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
@@ -31,8 +40,20 @@ defmodule Contact do
     contact_uuid
   end
 
-  @spec get_contact_uuid(binary) :: binary
-  def get_contact_uuid(contact_id) do
+  @spec async_do(fun) :: any
+  def async_do(fun) do
+    task =
+      Task.async(fn ->
+        GenServer.cast(ContactManager, {:set_receive_pid, self})
+
+        fun.()
+      end)
+
+    Task.await(task)
+  end
+
+  @spec get_uuid(binary) :: binary
+  def get_uuid(contact_id) do
     GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id})
 
     receive do
@@ -45,12 +66,23 @@ defmodule Contact do
     end
   end
 
-  @spec get_contact_pub_key(binary) :: binary
-  def get_contact_pub_key(contact_uuid) do
-    Logger.info("before sendsendsendsend")
+  @spec get_id(binary) :: binary
+  def get_id(contact_uuid) do
+    GenServer.cast(TCPServer, {:send_data, :req_id, contact_uuid})
+
+    receive do
+      {:req_id_response, response} ->
+        response
+    after
+      5000 ->
+        Logger.warning("Timeout waiting for id")
+        exit(:timeout)
+    end
+  end
+
+  @spec get_pub_key(binary) :: binary
+  def get_pub_key(contact_uuid) do
     GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid})
-    
-    Logger.info("sendsendsendsend")
 
     receive do
       {:req_pub_key_response, response} ->

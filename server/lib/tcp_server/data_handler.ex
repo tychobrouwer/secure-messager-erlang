@@ -44,21 +44,22 @@ defmodule TCPServer.DataHandler do
 
       :req_uuid ->
         requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
-        
-        Logger.info(inspect(requested_uuid))
-        Logger.info(inspect(uuid))
 
         GenServer.call(
           TCPServer,
           {:send_data, :res_uuid, uuid, requested_uuid}
         )
 
+      :req_id ->
+        requested_id = GenServer.call(TCPServer, {:get_client_id, message})
+
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_id, uuid, requested_id}
+        )
+
       :req_pub_key ->
-        Logger.info("requesting PUBLIC KEY")
-
         public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
-
-        Logger.info("public_key: #{inspect(public_key)}")
 
         GenServer.call(
           TCPServer,
