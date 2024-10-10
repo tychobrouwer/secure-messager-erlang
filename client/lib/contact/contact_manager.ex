@@ -47,27 +47,26 @@ defmodule ContactManager do
   @impl true
   @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
   def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state) do
-    if Map.has_key?(state, contact_uuid) do
-      Logger.warning("Contact already exists")
-
-      {:noreply, state}
-    else
-      keypair = Map.get(state, "keypair")
-
-      dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, contact_pub_key)
-
-      new_state =
-        Map.put(state, contact_uuid, %{
-          contact_id: contact_id,
-          contact_pub_key: contact_pub_key,
-          keypair: keypair,
-          dh_ratchet: dh_ratchet,
-          m_ratchet: nil,
-          state: nil
-        })
-
-      {:noreply, new_state}
+    if Map.get(state, contact_uuid) != nil do
+      Logger.error("Contact already exists")
+      exit("Dont call add contact if it already exists")
     end
+
+    keypair = Map.get(state, "keypair")
+
+    dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, contact_pub_key)
+
+    new_state =
+      Map.put(state, contact_uuid, %{
+        contact_id: contact_id,
+        contact_pub_key: contact_pub_key,
+        keypair: keypair,
+        dh_ratchet: dh_ratchet,
+        m_ratchet: nil,
+        state: nil
+      })
+
+    {:noreply, new_state}
   end
 
   @impl true
@@ -93,7 +92,9 @@ defmodule ContactManager do
     contact = Map.get(state, contact_uuid)
 
     keypair =
-      if contact.state != nil do
+      if contact.state != nil && contact.state != :sending do
+        Logger.info("Generating new keypair")
+
         Crypt.Keys.generate_keypair()
       else
         contact.keypair
@@ -101,12 +102,9 @@ defmodule ContactManager do
 
     updated_contact = Map.put(contact, :keypair, keypair)
 
-    contact_state =
-      if contact.state == nil do
-        :receiving
-      else
-        contact.state
-      end
+    Logger.info("Sending contact state -> #{contact.state}")
+
+    contact_state = contact.state || :receiving
 
     case contact_state do
       :receiving ->
@@ -133,32 +131,33 @@ defmodule ContactManager do
         new_state = Map.put(state, contact_uuid, updated_contact)
 
         {:reply, updated_contact, new_state}
-
-      _ ->
-        Logger.error("Failed to cycle contact sending")
-        {:reply, contact, state}
     end
   end
 
   @impl true
   @spec handle_call({:cycle_contact_receiving, binary, binary}, any, map) ::
           {:reply, contact, map}
-  def handle_call({:cycle_contact_receiving, contact_uuid, new_pub_key}, _from, state) do
+  def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state) do
     contact = Map.get(state, contact_uuid)
 
-    contact_state =
-      if contact.state == nil do
-        :sending
-      else
-        contact.state
-      end
+    Logger.info("Receiving contact state -> #{contact.state}")
+
+    contact_state = contact.state || :sending
+
+    updated_contact = Map.put(contact, :contact_pub_key, pub_key)
 
     case contact_state do
       :sending ->
-        dh_ratchet = Crypt.Ratchet.rk_cycle(contact.dh_ratchet, contact.keypair, new_pub_key)
+        dh_ratchet =
+          Crypt.Ratchet.rk_cycle(
+            updated_contact.dh_ratchet,
+            updated_contact.keypair,
+            updated_contact.contact_pub_key
+          )
+
         m_ratchet = Crypt.Ratchet.ck_cycle(dh_ratchet.child_key)
 
-        updated_contact = Map.put(contact, :dh_ratchet, dh_ratchet)
+        updated_contact = Map.put(updated_contact, :dh_ratchet, dh_ratchet)
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
         updated_contact = Map.put(updated_contact, :state, :receiving)
         new_state = Map.put(state, contact_uuid, updated_contact)
@@ -168,14 +167,10 @@ defmodule ContactManager do
       :receiving ->
         m_ratchet = Crypt.Ratchet.ck_cycle(contact.m_ratchet.root_key)
 
-        updated_contact = Map.put(contact, :m_ratchet, m_ratchet)
+        updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
         new_state = Map.put(state, contact_uuid, updated_contact)
 
         {:reply, updated_contact, new_state}
-
-      _ ->
-        Logger.error("Failed to cycle contact receiving")
-        {:reply, contact, state}
     end
   end
 
@@ -185,11 +180,6 @@ defmodule ContactManager do
     keypair = Map.get(state, "keypair")
 
     {:reply, keypair, state}
-  end
-
-  @impl true
-  def handle_call({:get_pid}, _from, state) do
-    {:reply, Map.get(state, "pid"), state}
   end
 
   @impl true

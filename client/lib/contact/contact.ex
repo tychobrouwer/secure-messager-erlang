@@ -15,7 +15,7 @@ defmodule Contact do
       case {contact_id, contact_uuid} do
         {nil, nil} ->
           Logger.error("No contact id or uuid provided")
-          exit(:no_contact_id_or_uuid)
+          exit("Dont call add contact if id and uuid are nil")
 
         {nil, contact_uuid} ->
           contact_id = async_do(fn -> get_id(contact_uuid) end)

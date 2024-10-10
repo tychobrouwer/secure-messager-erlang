@@ -43,11 +43,21 @@ defmodule Client do
       Client.Message.send("Hello World! 3", contact_uuid)
     end
 
-    Process.sleep(100_000)
-  end
+    if System.get_env("USER") == "user2" do
+      Process.sleep(6000)
 
-  @impl true
-  def handle_call({:get_pid}, _from, state) do
-    {:reply, self(), state}
+      contact_uuid = Contact.add_contact(nil, "user1")
+      Client.Message.send("Hello World! 4", contact_uuid)
+
+      Process.sleep(1000)
+
+      Client.Message.send("Hello World! 5", contact_uuid)
+
+      Process.sleep(1000)
+
+      Client.Message.send("Hello World! 6", contact_uuid)
+    end
+
+    Process.sleep(100_000)
   end
 end
