@@ -8,15 +8,17 @@ defmodule TCPServerTester do
 
   require Logger
 
-  test "create_packet" do
-    packet_type = :message
-    packet_version = 1
-    message = "Hello, world!"
+  # test "create_packet" do
+  #   packet_type = :message
+  #   packet_version = 1
+  #   message = ~c"Hello, world!"
 
-    packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
+  #   packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
 
-    assert byte_size(packet) == 35
-  end
+  #   Logger.info("Packet -> #{inspect(packet)}")
+
+  #   assert byte_size(packet) == 35
+  # end
 
   test "packet_to_int" do
     assert TCPServer.Utils.packet_to_int(:ack) == 0

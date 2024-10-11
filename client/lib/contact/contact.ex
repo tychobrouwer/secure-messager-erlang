@@ -34,6 +34,8 @@ defmodule Contact do
     if GenServer.call(ContactManager, {:get_contact, contact_uuid}) == nil do
       contact_pub_key = async_do(fn -> get_pub_key(contact_uuid) end)
 
+      Utils.exit_on_nil(contact_pub_key, "add_contact")
+
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
 

@@ -58,6 +58,6 @@ defmodule Client do
       Client.Message.send("Hello World! 6", contact_uuid)
     end
 
-    Process.sleep(100_000)
+    Process.sleep(5000)
   end
 end

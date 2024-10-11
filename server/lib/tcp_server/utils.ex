@@ -26,7 +26,7 @@ defmodule TCPServer.Utils do
     :crypto.hash(:sha, uuid_bytes)
   end
 
-  @spec packet_to_int(packet_type) :: integer
+  @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
     case type do
       :ack -> 0
@@ -43,10 +43,11 @@ defmodule TCPServer.Utils do
       :req_pub_key -> 11
       :res_pub_key -> 12
       :req_update_pub_key -> 13
+      _ -> nil
     end
   end
 
-  @spec packet_bin_to_atom(binary) :: packet_type
+  @spec packet_bin_to_atom(binary) :: packet_type | nil
   def packet_bin_to_atom(type) when is_binary(type) do
     case type do
       <<0>> -> :ack
@@ -63,6 +64,7 @@ defmodule TCPServer.Utils do
       <<11>> -> :req_pub_key
       <<12>> -> :res_pub_key
       <<13>> -> :req_update_pub_key
+      _ -> nil
     end
   end
 end

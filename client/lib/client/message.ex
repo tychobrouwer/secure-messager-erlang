@@ -13,6 +13,11 @@ defmodule Client.Message do
   def send(message, recipient_uuid) do
     contact = GenServer.call(ContactManager, {:cycle_contact_sending, recipient_uuid})
 
+    Utils.exit_on_nil(contact, "send")
+    Utils.exit_on_nil(contact.m_ratchet, "send")
+    Utils.exit_on_nil(contact.m_ratchet.child_key, "send")
+    Utils.exit_on_nil(contact.keypair.public, "send")
+
     {encrypted_message, message_tag, mac_hash} =
       Crypt.Message.encrypt(message, contact.m_ratchet.child_key)
 
@@ -33,19 +38,28 @@ defmodule Client.Message do
   def receive(message) do
     message_data = :erlang.binary_to_term(message)
 
-    sender_uuid = message_data.sender_uuid
+    Utils.exit_on_nil(message_data.sender_uuid, "receive")
+    Utils.exit_on_nil(message_data.recipient_uuid, "receive")
+    Utils.exit_on_nil(message_data.message_uuid, "receive")
+    Utils.exit_on_nil(message_data.tag, "receive")
+    Utils.exit_on_nil(message_data.hash, "receive")
+    Utils.exit_on_nil(message_data.public_key, "receive")
+    Utils.exit_on_nil(message_data.message, "receive")
 
-    contact = GenServer.call(ContactManager, {:get_contact, sender_uuid})
+    contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_uuid})
 
     if contact == nil do
-      Contact.add_contact(sender_uuid, nil)
+      Contact.add_contact(message_data.sender_uuid, nil)
     end
 
     contact =
       GenServer.call(
         ContactManager,
-        {:cycle_contact_receiving, sender_uuid, message_data.public_key}
+        {:cycle_contact_receiving, message_data.sender_uuid, message_data.public_key}
       )
+
+    Utils.exit_on_nil(contact.m_ratchet, "send")
+    Utils.exit_on_nil(contact.m_ratchet.child_key, "send")
 
     {decrypted_message, valid} =
       Crypt.Message.decrypt(

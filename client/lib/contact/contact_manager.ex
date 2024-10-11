@@ -39,12 +39,18 @@ defmodule ContactManager do
   @impl true
   @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
   def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state) do
+    Utils.exit_on_nil(contact_uuid, "add_contact")
+    Utils.exit_on_nil(contact_id, "add_contact")
+
     if Map.get(state, contact_uuid) != nil do
       Logger.error("Contact already exists")
+
       exit("Dont call add contact if it already exists")
     end
 
     keypair = Map.get(state, "keypair")
+
+    Utils.exit_on_nil(keypair, "add_contact")
 
     dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, contact_pub_key)
 
@@ -81,7 +87,11 @@ defmodule ContactManager do
   @spec handle_call({:cycle_contact_sending, binary}, any, map) ::
           {:reply, contact, map}
   def handle_call({:cycle_contact_sending, contact_uuid}, _from, state) do
+    Utils.exit_on_nil(contact_uuid, "cycle_contact_sending")
+
     contact = Map.get(state, contact_uuid)
+
+    Utils.exit_on_nil(contact, "cycle_contact_sending")
 
     keypair =
       if contact.state != nil && contact.state != :sending do
@@ -113,6 +123,9 @@ defmodule ContactManager do
         {:reply, updated_contact, new_state}
 
       :sending ->
+        Utils.exit_on_nil(updated_contact.m_ratchet, "cycle_contact_sending")
+        Utils.exit_on_nil(updated_contact.m_ratchet.root_key, "cycle_contact_sending")
+
         m_ratchet = Crypt.Ratchet.ck_cycle(updated_contact.m_ratchet.root_key)
 
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
@@ -126,7 +139,12 @@ defmodule ContactManager do
   @spec handle_call({:cycle_contact_receiving, binary, binary}, any, map) ::
           {:reply, contact, map}
   def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state) do
+    Utils.exit_on_nil(contact_uuid, "cycle_contact_receiving")
+    Utils.exit_on_nil(pub_key, "cycle_contact_receiving")
+
     contact = Map.get(state, contact_uuid)
+
+    Utils.exit_on_nil(contact, "cycle_contact_receiving")
 
     contact_state = contact.state || :sending
 
@@ -151,6 +169,9 @@ defmodule ContactManager do
         {:reply, updated_contact, new_state}
 
       :receiving ->
+        Utils.exit_on_nil(contact.m_ratchet, "cycle_contact_receiving")
+        Utils.exit_on_nil(contact.m_ratchet.root_key, "cycle_contact_receiving")
+
         m_ratchet = Crypt.Ratchet.ck_cycle(contact.m_ratchet.root_key)
 
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)

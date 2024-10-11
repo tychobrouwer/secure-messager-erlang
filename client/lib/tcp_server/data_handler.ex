@@ -1,10 +1,8 @@
 defmodule TCPServer.DataHandler do
   require Logger
 
-  alias TCPServer.Utils, as: Utils
-
   @type packet_version :: 1
-  @type packet_type :: Utils.packet_type()
+  @type packet_type :: TCPServer.Utils.packet_type()
   @type socket :: :inet.socket()
 
   @doc """
@@ -13,10 +11,22 @@ defmodule TCPServer.DataHandler do
 
   @spec handle_data(binary) :: :ok
   def handle_data(packet_data) do
-    <<_::binary-size(1), type_bin::binary-size(1), _::binary-size(20), data::binary>> =
-      packet_data
+    %{version: version, type_bin: type_bin, uuid: uuid, data: data} =
+      try do
+        <<version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
+          packet_data
 
-    type = Utils.packet_bin_to_atom(type_bin)
+        %{version: version, type_bin: type_bin, uuid: uuid, data: data}
+      catch
+        _ ->
+          Logger.error("Failed to parse packet data -> #{inspect(packet_data)}")
+
+          exit(":failed_to_parse_packet_handle_data")
+      end
+
+    type = TCPServer.Utils.packet_bin_to_atom(type_bin)
+
+    Utils.exit_on_nil(type, "handle_data")
 
     Logger.info("Received data -> #{type} : #{inspect(data)}")
 
@@ -81,7 +91,7 @@ defmodule TCPServer.DataHandler do
 
   @spec create_packet(packet_version, packet_type, binary) :: binary
   def create_packet(version, type, data) do
-    type_bin = Utils.packet_to_int(type)
+    type_bin = TCPServer.Utils.packet_to_int(type)
 
     uuid = GenServer.call(TCPServer, {:get_uuid})
 
