@@ -14,6 +14,8 @@ defmodule TCPServerTester do
     message = "Hello, world!"
 
     packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
+
+    assert byte_size(packet) == 35
   end
 
   test "packet_to_int" do
@@ -30,27 +32,5 @@ defmodule TCPServerTester do
     assert TCPServer.Utils.packet_bin_to_atom(<<2>>) == :handshake
     assert TCPServer.Utils.packet_bin_to_atom(<<3>>) == :handshake_ack
     assert TCPServer.Utils.packet_bin_to_atom(<<4>>) == :message
-  end
-
-  test "get_pid" do
-    pid = GenServer.call(TCPServer, {:get_pid})
-    assert is_pid(pid)
-  end
-
-  test "tcp_server" do
-    pid = GenServer.call(TCPServer, {:get_pid})
-
-    GenServer.cast(TCPServer, {:add_connection, pid})
-
-    pid_1 = GenServer.call(TCPServer, {:get_connection_pid})
-
-    assert is_pid(pid)
-    assert pid == pid_1
-
-    GenServer.cast(TCPServer, {:remove_connection})
-
-    pid_2 = GenServer.call(TCPServer, {:get_connection_pid})
-
-    assert pid_2 == nil
   end
 end

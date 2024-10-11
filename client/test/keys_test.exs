@@ -1,6 +1,9 @@
 defmodule KeysTester do
   use ExUnit.Case, async: true
+
+  doctest Crypt.Hkdf
   doctest Crypt.Keys
+  doctest Crypt.Message
 
   test "generate_keypair/0" do
     keypair = Crypt.Keys.generate_keypair()

@@ -19,19 +19,9 @@ defmodule ContactManager do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  @doc """
-  state = %{
-    keypair: keypair,
-    contact_uuid: contact
-  }
-  """
-
   @impl true
   def init(state) do
-    keypair = %{
-      public: Base.decode16!("08C9B85839F04E2A665A99B18018D3B54AB25F9C28D51420B6E378528C0DC459"),
-      private: Base.decode16!("DF2F4C61B99C25C96B55E1B5C2E04F419D8708248D196C177CF135F075ADFD60")
-    }
+    keypair = Crypt.Keys.generate_keypair()
 
     state = Map.put(state, "keypair", keypair)
     state = Map.put(state, "pid", self())
@@ -39,6 +29,8 @@ defmodule ContactManager do
     {:ok, state}
   end
 
+  @impl true
+  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
   def handle_cast({:set_receive_pid, pid}, state) do
     new_state = Map.put(state, "receive_pid", pid)
     {:noreply, new_state}
@@ -93,16 +85,12 @@ defmodule ContactManager do
 
     keypair =
       if contact.state != nil && contact.state != :sending do
-        Logger.info("Generating new keypair")
-
         Crypt.Keys.generate_keypair()
       else
         contact.keypair
       end
 
     updated_contact = Map.put(contact, :keypair, keypair)
-
-    Logger.info("Sending contact state -> #{contact.state}")
 
     contact_state = contact.state || :receiving
 
@@ -139,8 +127,6 @@ defmodule ContactManager do
           {:reply, contact, map}
   def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state) do
     contact = Map.get(state, contact_uuid)
-
-    Logger.info("Receiving contact state -> #{contact.state}")
 
     contact_state = contact.state || :sending
 
@@ -183,6 +169,7 @@ defmodule ContactManager do
   end
 
   @impl true
+  @spec handle_call({:get_receive_pid}, any, map) :: {:reply, pid, map}
   def handle_call({:get_receive_pid}, _from, state) do
     {:reply, Map.get(state, "receive_pid"), state}
   end
