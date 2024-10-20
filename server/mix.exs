@@ -21,6 +21,8 @@ defmodule Server.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    []
+    [
+      {:bcrypt_elixir, ">= 3.2.0"}
+    ]
   end
 end

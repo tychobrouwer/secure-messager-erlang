@@ -31,6 +31,17 @@ defmodule TCPServer.DataHandler do
 
         GenServer.cast(TCPServer, {:update_connection, conn_uuid, client_id, client_pub_key})
 
+      :req_login ->
+        nil
+
+      :req_signup ->
+        nil
+
+      :req_nonce ->
+        nonce = :crypto.strong_rand_bytes(16)
+
+        GenServer.cast(TCPServer, {:send_data, :res_nonce, uuid, nonce})
+
       :message ->
         message_data = :erlang.binary_to_term(message)
 
