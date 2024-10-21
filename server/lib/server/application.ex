@@ -9,6 +9,7 @@ defmodule Server.Application do
 
     children = [
       {Task.Supervisor, name: TCPServer.TaskSupervisor},
+      {UserManager, []},
       {TCPServer, []},
       Supervisor.child_spec({Task, fn -> TCPServer.Acceptor.accept(port) end},
         restart: :permanent,

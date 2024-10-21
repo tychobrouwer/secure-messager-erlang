@@ -32,13 +32,23 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:update_connection, conn_uuid, client_id, client_pub_key})
 
       :req_login ->
-        nil
+        <<user_id_length::8, message::binary>> = message
+        <<user_id::binary-size(user_id_length), hashed_password::binary>> = message
+
+        result = GenServer.call(UserManager, {:req_login, conn_uuid, user_id, hashed_password})
+
+        GenServer.cast(TCPServer, {:send_data, :res_login, uuid, result})
 
       :req_signup ->
-        nil
+        <<user_id_length::8, message::binary>> = message
+        <<user_id::binary-size(user_id_length), hashed_password::binary>> = message
+
+        result = GenServer.call(UserManager, {:req_signup, conn_uuid, user_id, hashed_password})
+
+        GenServer.cast(TCPServer, {:send_data, :res_signup, uuid, result})
 
       :req_nonce ->
-        nonce = :crypto.strong_rand_bytes(16)
+        nonce = GenServer.call(UserManager, {:req_nonce, conn_uuid, message})
 
         GenServer.cast(TCPServer, {:send_data, :res_nonce, uuid, nonce})
 
