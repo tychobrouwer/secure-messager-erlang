@@ -46,21 +46,33 @@ defmodule TCPServer.DataHandler do
         res_data = own_keypair.public <> user_id
         GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data})
 
+      :res_login ->
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
+        send(pid, {:req_login_response, data})
+
+      :res_signup ->
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
+        send(pid, {:req_signup_response, data})
+
+      :res_nonce ->
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
+        send(pid, {:req_nonce_response, data})
+
       :res_messages ->
         Task.async(fn ->
           Client.Message.receive(data)
         end)
 
       :res_uuid ->
-        pid = GenServer.call(ContactManager, {:get_receive_pid})
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
         send(pid, {:req_uuid_response, data})
 
       :res_id ->
-        pid = GenServer.call(ContactManager, {:get_receive_pid})
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
         send(pid, {:req_id_response, data})
 
       :res_pub_key ->
-        pid = GenServer.call(ContactManager, {:get_receive_pid})
+        pid = GenServer.call(TCPServer, {:get_receive_pid})
         send(pid, {:req_pub_key_response, data})
 
       _ ->

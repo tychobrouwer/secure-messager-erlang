@@ -15,10 +15,6 @@ defmodule Server.Application do
         id: TCPConnector
       ),
       {Client, []}
-      # Supervisor.child_spec({Task, fn -> Client.loop() end},
-      #   restart: :permanent,
-      #   id: ClientLoop
-      # )
     ]
 
     opts = [

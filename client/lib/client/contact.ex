@@ -1,4 +1,4 @@
-defmodule Contact do
+defmodule Client.Contact do
   @moduledoc """
 
   """
@@ -18,12 +18,12 @@ defmodule Contact do
           exit("Dont call add contact if id and uuid are nil")
 
         {nil, contact_uuid} ->
-          contact_id = async_do(fn -> get_id(contact_uuid) end)
+          contact_id = TCPServer.async_do(fn -> get_id(contact_uuid) end)
 
           {contact_id, contact_uuid}
 
         {contact_id, nil} ->
-          contact_uuid = async_do(fn -> get_uuid(contact_id) end)
+          contact_uuid = TCPServer.async_do(fn -> get_uuid(contact_id) end)
 
           {contact_id, contact_uuid}
 
@@ -32,7 +32,7 @@ defmodule Contact do
       end
 
     if GenServer.call(ContactManager, {:get_contact, contact_uuid}) == nil do
-      contact_pub_key = async_do(fn -> get_pub_key(contact_uuid) end)
+      contact_pub_key = TCPServer.async_do(fn -> get_pub_key(contact_uuid) end)
 
       Utils.exit_on_nil(contact_pub_key, "add_contact")
 
@@ -40,18 +40,6 @@ defmodule Contact do
     end
 
     contact_uuid
-  end
-
-  @spec async_do(fun) :: any
-  defp async_do(fun) do
-    task =
-      Task.async(fn ->
-        GenServer.cast(ContactManager, {:set_receive_pid, self()})
-
-        fun.()
-      end)
-
-    Task.await(task)
   end
 
   @spec get_uuid(binary) :: binary

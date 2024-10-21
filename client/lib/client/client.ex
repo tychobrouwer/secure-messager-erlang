@@ -31,7 +31,7 @@ defmodule Client do
     if System.get_env("USER") == "user1" do
       Process.sleep(1000)
 
-      contact_uuid = Contact.add_contact(nil, "user2")
+      contact_uuid = Client.Contact.add_contact(nil, "user2")
       Client.Message.send("Hello World! 1", contact_uuid)
 
       Process.sleep(1000)
@@ -46,7 +46,7 @@ defmodule Client do
     if System.get_env("USER") == "user2" do
       Process.sleep(6000)
 
-      contact_uuid = Contact.add_contact(nil, "user1")
+      contact_uuid = Client.Contact.add_contact(nil, "user1")
       Client.Message.send("Hello World! 4", contact_uuid)
 
       Process.sleep(1000)

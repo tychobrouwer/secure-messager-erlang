@@ -30,13 +30,6 @@ defmodule ContactManager do
   end
 
   @impl true
-  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
-  def handle_cast({:set_receive_pid, pid}, state) do
-    new_state = Map.put(state, "receive_pid", pid)
-    {:noreply, new_state}
-  end
-
-  @impl true
   @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
   def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state) do
     Utils.exit_on_nil(contact_uuid, "add_contact")
@@ -187,11 +180,5 @@ defmodule ContactManager do
     keypair = Map.get(state, "keypair")
 
     {:reply, keypair, state}
-  end
-
-  @impl true
-  @spec handle_call({:get_receive_pid}, any, map) :: {:reply, pid, map}
-  def handle_call({:get_receive_pid}, _from, state) do
-    {:reply, Map.get(state, "receive_pid"), state}
   end
 end

@@ -49,7 +49,7 @@ defmodule Client.Message do
     contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_uuid})
 
     if contact == nil do
-      Contact.add_contact(message_data.sender_uuid, nil)
+      Client.Contact.add_contact(message_data.sender_uuid, nil)
     end
 
     contact =

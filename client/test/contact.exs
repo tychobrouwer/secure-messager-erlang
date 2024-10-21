@@ -1,6 +1,5 @@
-defmodule ContactTest do
+defmodule ContactManagerTest do
   use ExUnit.Case, async: true
 
   doctest ContactManager
-  doctest Contact
 end

@@ -45,4 +45,29 @@ defmodule TCPServer do
   def handle_call({:get_connection_pid}, _from, state) do
     {:reply, Map.get(state, "tcp_pid"), state}
   end
+
+  @impl true
+  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
+  def handle_cast({:set_receive_pid, pid}, state) do
+    new_state = Map.put(state, "receive_pid", pid)
+    {:noreply, new_state}
+  end
+
+  @impl true
+  @spec handle_call({:get_receive_pid}, any, map) :: {:reply, pid, map}
+  def handle_call({:get_receive_pid}, _from, state) do
+    {:reply, Map.get(state, "receive_pid"), state}
+  end
+
+  @spec async_do(fun) :: any
+  def async_do(fun) do
+    task =
+      Task.async(fn ->
+        GenServer.cast(TCPServer, {:set_receive_pid, self()})
+
+        fun.()
+      end)
+
+    Task.await(task)
+  end
 end
