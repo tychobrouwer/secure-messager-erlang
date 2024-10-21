@@ -5,13 +5,10 @@ defmodule Client.Account do
 
   require Logger
 
-  def login() do
-    user_id = IO.gets("Enter your user id: ")
-    user_password = IO.gets("Enter your password: ")
-
+  def login(user_id, user_password) do
     nonce = TCPServer.async_do(fn -> get_nonce(user_id) end)
 
-    Logger.info("Logging in with user id: #{user_id}")
+    Logger.info("Attempting login with user id: #{user_id}")
 
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
@@ -25,24 +22,20 @@ defmodule Client.Account do
       exit("User id too long")
     end
 
-    data = <<user_id_len::8>> <> user_id <> hashed_password_with_nonce
+    login_data = <<user_id_len::8>> <> user_id <> hashed_password_with_nonce
 
-    GenServer.cast(TCPServer, {:send_data, :req_login, data})
+    response = TCPServer.async_do(fn -> do_login(login_data) end)
+    :erlang.binary_to_term(response)
   end
 
-  def signup() do
-    Logger.info("Signing up")
-
-    user_id = IO.gets("Enter your user id: ")
-    user_password = IO.gets("Enter your password: ")
-
+  def signup(user_id, user_password) do
     # Should be generated here and stored in the local database
     # local_salt = Bcrypt.Base.gen_salt(12, false)
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
     hashed_password = Bcrypt.Base.hash_password(user_password, local_salt)
 
-    Logger.info("Signing up with user id: #{user_id}")
+    Logger.info("Attempting signup with user id: #{user_id}")
 
     user_id_len = byte_size(user_id)
 
@@ -53,7 +46,8 @@ defmodule Client.Account do
 
     signup_data = <<user_id_len::8>> <> user_id <> hashed_password
 
-    result = TCPServer.async_do(fn -> do_signup(signup_data) end)
+    response = TCPServer.async_do(fn -> do_signup(signup_data) end)
+    :erlang.binary_to_term(response)
   end
 
   @spec get_nonce(binary) :: binary

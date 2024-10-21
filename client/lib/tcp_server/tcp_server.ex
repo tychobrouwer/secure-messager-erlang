@@ -37,6 +37,13 @@ defmodule TCPServer do
   end
 
   @impl true
+  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
+  def handle_cast({:set_receive_pid, pid}, state) do
+    new_state = Map.put(state, "receive_pid", pid)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_call({:get_uuid}, _from, state) do
     {:reply, Map.get(state, "uuid"), state}
   end
@@ -44,13 +51,6 @@ defmodule TCPServer do
   @impl true
   def handle_call({:get_connection_pid}, _from, state) do
     {:reply, Map.get(state, "tcp_pid"), state}
-  end
-
-  @impl true
-  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
-  def handle_cast({:set_receive_pid, pid}, state) do
-    new_state = Map.put(state, "receive_pid", pid)
-    {:noreply, new_state}
   end
 
   @impl true

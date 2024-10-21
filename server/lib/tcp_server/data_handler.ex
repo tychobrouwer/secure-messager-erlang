@@ -13,7 +13,8 @@ defmodule TCPServer.DataHandler do
 
   @spec handle_data(binary, binary) :: :ok
   def handle_data(data, conn_uuid) do
-    <<_::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), message::binary>> = data
+    <<_version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), message::binary>> =
+      data
 
     type = Utils.packet_bin_to_atom(type_bin)
 
@@ -36,8 +37,9 @@ defmodule TCPServer.DataHandler do
         <<user_id::binary-size(user_id_length), hashed_password::binary>> = message
 
         result = GenServer.call(UserManager, {:req_login, conn_uuid, user_id, hashed_password})
+        response = :erlang.term_to_binary(result)
 
-        GenServer.cast(TCPServer, {:send_data, :res_login, uuid, result})
+        GenServer.call(TCPServer, {:send_data, :res_login, uuid, response})
 
       :req_signup ->
         <<user_id_length::8, message::binary>> = message
@@ -45,12 +47,14 @@ defmodule TCPServer.DataHandler do
 
         result = GenServer.call(UserManager, {:req_signup, conn_uuid, user_id, hashed_password})
 
-        GenServer.cast(TCPServer, {:send_data, :res_signup, uuid, result})
+        response = :erlang.term_to_binary(result)
+
+        GenServer.call(TCPServer, {:send_data, :res_signup, uuid, response})
 
       :req_nonce ->
         nonce = GenServer.call(UserManager, {:req_nonce, conn_uuid, message})
 
-        GenServer.cast(TCPServer, {:send_data, :res_nonce, uuid, nonce})
+        GenServer.call(TCPServer, {:send_data, :res_nonce, uuid, nonce})
 
       :message ->
         message_data = :erlang.binary_to_term(message)
@@ -86,9 +90,6 @@ defmodule TCPServer.DataHandler do
           TCPServer,
           {:send_data, :res_pub_key, uuid, public_key}
         )
-
-      :req_update_pub_key ->
-        GenServer.cast(TCPServer, {:update_client_pub_key, uuid, message})
 
       _ ->
         nil

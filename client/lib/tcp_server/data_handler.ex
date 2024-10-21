@@ -11,7 +11,7 @@ defmodule TCPServer.DataHandler do
 
   @spec handle_data(binary) :: :ok
   def handle_data(packet_data) do
-    %{version: version, type_bin: type_bin, uuid: uuid, data: data} =
+    %{version: _version, type_bin: type_bin, uuid: _uuid, data: data} =
       try do
         <<version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
           packet_data

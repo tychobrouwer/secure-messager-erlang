@@ -11,7 +11,7 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_user_login, user_uuid, user_id, password_with_nonce}, _from, state) do
+  def handle_call({:req_login, user_uuid, user_id, password_with_nonce}, _from, state) do
     user = Map.get(state, user_uuid)
 
     if verify_user(user, user_id) do
@@ -24,19 +24,20 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_user_signup, user_uuid, user_id, hashed_password}, _from, state) do
+  def handle_call({:req_signup, user_uuid, user_id, hashed_password}, _from, state) do
     if !exists_user_id(state, user_id) do
       user = %{
         id: user_id,
         password: hashed_password,
-        nonce: nil
+        nonce: nil,
+        token: nil
       }
 
       new_state = Map.put(state, user_uuid, user)
 
-      {:reply, user, new_state}
+      {:reply, true, new_state}
     else
-      {:reply, nil, state}
+      {:reply, false, state}
     end
   end
 

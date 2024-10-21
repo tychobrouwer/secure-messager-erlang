@@ -19,7 +19,6 @@ defmodule TCPServer.Utils do
           | :res_id
           | :req_pub_key
           | :res_pub_key
-          | :req_update_pub_key
 
   @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
@@ -43,7 +42,6 @@ defmodule TCPServer.Utils do
       :res_id -> 16
       :req_pub_key -> 17
       :res_pub_key -> 18
-      :req_update_pub_key -> 19
       _ -> nil
     end
   end
@@ -70,7 +68,6 @@ defmodule TCPServer.Utils do
       <<16>> -> :res_id
       <<17>> -> :req_pub_key
       <<18>> -> :res_pub_key
-      <<19>> -> :req_update_pub_key
       _ -> nil
     end
   end
