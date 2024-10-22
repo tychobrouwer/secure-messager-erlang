@@ -75,8 +75,6 @@ defmodule TCPServer.DataHandler do
         <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
         valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
 
-        Logger.info("Valid? -> #{valid}")
-
         if valid do
           requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
 
