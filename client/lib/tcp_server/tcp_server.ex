@@ -29,10 +29,10 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:send_data, type, data}, state) do
+  def handle_cast({:send_data, type, data, auth}, state) do
     pid = Map.get(state, "tcp_pid")
 
-    send(pid, {:send_data, type, data})
+    send(pid, {:send_data, type, data, auth})
     {:noreply, state}
   end
 
@@ -41,6 +41,26 @@ defmodule TCPServer do
   def handle_cast({:set_receive_pid, pid}, state) do
     new_state = Map.put(state, "receive_pid", pid)
     {:noreply, new_state}
+  end
+
+  @impl true
+  def handle_cast({:set_auth_token, token}, state) do
+    {:noreply, Map.put(state, :auth_token, token)}
+  end
+
+  @impl true
+  def handle_cast({:set_auth_id, id}, state) do
+    {:noreply, Map.put(state, :auth_id, id)}
+  end
+
+  @impl true
+  def handle_call({:get_auth_token}, _from, state) do
+    {:reply, Map.get(state, :auth_token), state}
+  end
+
+  @impl true
+  def handle_call({:get_auth_id}, _from, state) do
+    {:reply, Map.get(state, :auth_id), state}
   end
 
   @impl true

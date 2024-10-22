@@ -33,31 +33,35 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:update_connection, conn_uuid, client_id, client_pub_key})
 
       :req_login ->
-        <<user_id_length::8, message::binary>> = message
-        <<user_id::binary-size(user_id_length), hashed_password::binary>> = message
+        <<user_id::binary-size(16), hashed_password::binary>> = message
 
-        result = GenServer.call(UserManager, {:req_login, conn_uuid, user_id, hashed_password})
-        response = :erlang.term_to_binary(result)
+        token = GenServer.call(UserManager, {:req_login, uuid, user_id, hashed_password})
 
-        GenServer.call(TCPServer, {:send_data, :res_login, uuid, response})
+        GenServer.call(TCPServer, {:send_data, :res_login, uuid, token})
 
       :req_signup ->
-        <<user_id_length::8, message::binary>> = message
-        <<user_id::binary-size(user_id_length), hashed_password::binary>> = message
+        <<user_id::binary-size(16), hashed_password::binary>> = message
 
-        result = GenServer.call(UserManager, {:req_signup, conn_uuid, user_id, hashed_password})
+        token = GenServer.call(UserManager, {:req_signup, uuid, user_id, hashed_password})
 
-        response = :erlang.term_to_binary(result)
-
-        GenServer.call(TCPServer, {:send_data, :res_signup, uuid, response})
+        GenServer.call(TCPServer, {:send_data, :res_signup, uuid, token})
 
       :req_nonce ->
-        nonce = GenServer.call(UserManager, {:req_nonce, conn_uuid, message})
+        nonce = GenServer.call(UserManager, {:req_nonce, message})
 
         GenServer.call(TCPServer, {:send_data, :res_nonce, uuid, nonce})
 
       :message ->
+        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
+        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+
+        Logger.info("Valid? -> #{valid}")
+
         message_data = :erlang.binary_to_term(message)
+
+        # Somehow check if the message sender uuid is valid and corresponds to the user_id
+        valid_sender =
+          GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
 
         GenServer.call(
           TCPServer,
@@ -68,6 +72,11 @@ defmodule TCPServer.DataHandler do
         nil
 
       :req_uuid ->
+        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
+        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+
+        Logger.info("Valid? -> #{valid}")
+
         requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
 
         GenServer.call(
@@ -76,6 +85,11 @@ defmodule TCPServer.DataHandler do
         )
 
       :req_id ->
+        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
+        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+
+        Logger.info("Valid? -> #{valid}")
+
         requested_id = GenServer.call(TCPServer, {:get_client_id, message})
 
         GenServer.call(
@@ -84,6 +98,11 @@ defmodule TCPServer.DataHandler do
         )
 
       :req_pub_key ->
+        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
+        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+
+        Logger.info("Valid? -> #{valid}")
+
         public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
 
         GenServer.call(

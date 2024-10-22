@@ -45,7 +45,15 @@ defmodule TCPServer.Connector do
 
         exit(:error)
 
-      {:send_data, type, message} ->
+      {:send_data, type, message, :with_auth} ->
+        token = GenServer.call(TCPServer, {:get_auth_token})
+        id = GenServer.call(TCPServer, {:get_auth_id})
+
+        message = id <> token <> message
+
+        DataHandler.send_data(message, type, socket)
+
+      {:send_data, type, message, :no_auth} ->
         DataHandler.send_data(message, type, socket)
     after
       1000 ->

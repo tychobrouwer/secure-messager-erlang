@@ -44,7 +44,7 @@ defmodule Client.Contact do
 
   @spec get_uuid(binary) :: binary
   defp get_uuid(contact_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id})
+    GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id, :with_auth})
 
     receive do
       {:req_uuid_response, response} ->
@@ -58,7 +58,7 @@ defmodule Client.Contact do
 
   @spec get_id(binary) :: binary
   defp get_id(contact_uuid) do
-    GenServer.cast(TCPServer, {:send_data, :req_id, contact_uuid})
+    GenServer.cast(TCPServer, {:send_data, :req_id, contact_uuid, :with_auth})
 
     receive do
       {:req_id_response, response} ->
@@ -72,7 +72,7 @@ defmodule Client.Contact do
 
   @spec get_pub_key(binary) :: binary
   defp get_pub_key(contact_uuid) do
-    GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid})
+    GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid, :with_auth})
 
     receive do
       {:req_pub_key_response, response} ->

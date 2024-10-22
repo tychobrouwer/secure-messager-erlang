@@ -15,17 +15,10 @@ defmodule Client.Account do
     hashed_password = Bcrypt.Base.hash_password(user_password, local_salt)
     hashed_password_with_nonce = Bcrypt.Base.hash_password(hashed_password, nonce)
 
-    user_id_len = byte_size(user_id)
+    user_id_hash = :crypto.hash(:md4, user_id)
+    login_data = user_id_hash <> hashed_password_with_nonce
 
-    if user_id_len > 255 do
-      Logger.error("User id too long")
-      exit("User id too long")
-    end
-
-    login_data = <<user_id_len::8>> <> user_id <> hashed_password_with_nonce
-
-    response = TCPServer.async_do(fn -> do_login(login_data) end)
-    :erlang.binary_to_term(response)
+    TCPServer.async_do(fn -> do_login(login_data) end)
   end
 
   def signup(user_id, user_password) do
@@ -37,26 +30,20 @@ defmodule Client.Account do
 
     Logger.info("Attempting signup with user id: #{user_id}")
 
-    user_id_len = byte_size(user_id)
+    user_id_hash = :crypto.hash(:md4, user_id)
+    signup_data = user_id_hash <> hashed_password
 
-    if user_id_len > 255 do
-      Logger.error("User id too long")
-      exit("User id too long")
-    end
-
-    signup_data = <<user_id_len::8>> <> user_id <> hashed_password
-
-    response = TCPServer.async_do(fn -> do_signup(signup_data) end)
-    :erlang.binary_to_term(response)
+    TCPServer.async_do(fn -> do_signup(signup_data) end)
   end
 
   @spec get_nonce(binary) :: binary
   defp get_nonce(user_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_nonce, user_id})
+    user_id_hash = :crypto.hash(:md4, user_id)
+    GenServer.cast(TCPServer, {:send_data, :req_nonce, user_id_hash, :no_auth})
 
     receive do
-      {:req_nonce_response, response} ->
-        response
+      {:req_nonce_response, nonce} ->
+        nonce
     after
       5000 ->
         Logger.warning("Timeout waiting for signup data")
@@ -66,11 +53,11 @@ defmodule Client.Account do
 
   @spec do_login(binary) :: binary
   defp do_login(login_data) do
-    GenServer.cast(TCPServer, {:send_data, :req_login, login_data})
+    GenServer.cast(TCPServer, {:send_data, :req_login, login_data, :no_auth})
 
     receive do
-      {:req_login_response, response} ->
-        response
+      {:req_login_response, token} ->
+        token
     after
       5000 ->
         Logger.warning("Timeout waiting for signup data")
@@ -80,11 +67,11 @@ defmodule Client.Account do
 
   @spec do_signup(binary) :: binary
   defp do_signup(signup_data) do
-    GenServer.cast(TCPServer, {:send_data, :req_signup, signup_data})
+    GenServer.cast(TCPServer, {:send_data, :req_signup, signup_data, :no_auth})
 
     receive do
-      {:req_signup_response, response} ->
-        response
+      {:req_signup_response, token} ->
+        token
     after
       5000 ->
         Logger.warning("Timeout waiting for signup data")

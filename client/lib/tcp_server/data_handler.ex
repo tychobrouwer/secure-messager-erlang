@@ -44,7 +44,7 @@ defmodule TCPServer.DataHandler do
         own_keypair = GenServer.call(ContactManager, {:get_keypair})
 
         res_data = own_keypair.public <> user_id
-        GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data})
+        GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data, :no_auth})
 
       :res_login ->
         pid = GenServer.call(TCPServer, {:get_receive_pid})

@@ -12,14 +12,25 @@ defmodule UserManager do
 
   @impl true
   def handle_call({:req_login, user_uuid, user_id, password_with_nonce}, _from, state) do
-    user = Map.get(state, user_uuid)
+    user = Map.get(state, user_id)
 
-    if verify_user(user, user_id) do
-      result = verify_user_pass(user.password, user.nonce, password_with_nonce)
+    result = verify_user_pass(user.password, user.nonce, password_with_nonce)
 
-      {:reply, result, state}
+    if result do
+      token = Bcrypt.Base.gen_salt(12, false)
+      user = Map.put(user, :token, token)
+      user = Map.put(user, :uuid, user_uuid)
+      user = Map.put(user, :nonce, nil)
+      new_state = Map.put(state, user_id, user)
+
+      {:reply, token, new_state}
     else
-      {:reply, false, state}
+      nil_token = <<0::size(29 * 8)>>
+
+      user = Map.put(user, :nonce, nil)
+      new_state = Map.put(state, user_id, user)
+
+      {:reply, nil_token, new_state}
     end
   end
 
@@ -28,49 +39,45 @@ defmodule UserManager do
     if !exists_user_id(state, user_id) do
       user = %{
         id: user_id,
+        uuid: user_uuid,
         password: hashed_password,
         nonce: nil,
-        token: nil
+        token: Bcrypt.Base.gen_salt(12, false)
       }
 
-      new_state = Map.put(state, user_uuid, user)
+      new_state = Map.put(state, user_id, user)
 
-      {:reply, true, new_state}
+      {:reply, user.token, new_state}
     else
-      {:reply, false, state}
+      nil_token = <<0::size(29 * 8)>>
+
+      {:reply, nil_token, state}
     end
   end
 
   @impl true
-  def handle_call({:req_nonce, user_uuid, user_id}, _from, state) do
-    user = Map.get(state, user_uuid)
+  def handle_call({:req_nonce, user_id}, _from, state) do
+    user = Map.get(state, user_id)
 
-    if verify_user(user, user_id) do
-      nonce = Bcrypt.Base.gen_salt(12, false)
+    nonce = Bcrypt.Base.gen_salt(12, false)
 
-      user = Map.put(user, :nonce, nonce)
-      new_state = Map.put(state, user_uuid, user)
+    user = Map.put(user, :nonce, nonce)
+    new_state = Map.put(state, user_id, user)
 
-      {:reply, nonce, new_state}
-    else
-      {:reply, nil, state}
-    end
+    {:reply, nonce, new_state}
+  end
+
+  @impl true
+  def handle_call({:verify_token, user_uuid, user_id, token}, _from, state) do
+    user = Map.get(state, user_id)
+
+    result = user.token == token && user.uuid == user_uuid
+
+    {:reply, result, state}
   end
 
   defp exists_user_id(state, user_id) do
     Enum.any?(Map.values(state), fn user -> user.id == user_id end)
-  end
-
-  defp verify_user(user, user_id) when is_nil(user) or is_nil(user_id) do
-    false
-  end
-
-  defp verify_user(user, user_id) do
-    if user.id != user_id do
-      false
-    else
-      true
-    end
   end
 
   defp verify_user_pass(password, nonce, pass_with_nonce)

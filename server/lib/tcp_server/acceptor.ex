@@ -29,6 +29,7 @@ defmodule TCPServer.Acceptor do
   defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
 
+    # conn_uuid should be gotten from database
     conn_uuid = Utils.uuid()
 
     Logger.info("New connection -> uid : #{inspect(conn_uuid)}")

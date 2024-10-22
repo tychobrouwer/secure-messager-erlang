@@ -31,7 +31,7 @@ defmodule Client.Message do
       message: encrypted_message
     }
 
-    GenServer.cast(TCPServer, {:send_data, :message, :erlang.term_to_binary(data)})
+    GenServer.cast(TCPServer, {:send_data, :message, :erlang.term_to_binary(data), :with_auth})
   end
 
   @spec receive(binary) :: :ok

@@ -31,20 +31,31 @@ defmodule Client do
     user_id = System.get_env("USER")
     user_password = "password123"
 
-    signup_result = Client.Account.signup(user_id, user_password)
+    token = Client.Account.signup(user_id, user_password)
 
-    if signup_result == false do
-      login_result = Client.Account.login(user_id, user_password)
+    nil_token = <<0::size(29 * 8)>>
 
-      if login_result == false do
-        Logger.error("Login failed")
-        exit("Login failed")
+    token =
+      if token == nil_token do
+        token = Client.Account.login(user_id, user_password)
+
+        if token == nil_token do
+          Logger.error("Login failed")
+          exit("Login failed")
+        end
+
+        Logger.info("Login successful: #{user_id}")
+
+        token
+      else
+        Logger.info("Signup successful: #{user_id}")
+
+        token
       end
 
-      Logger.info("Login successful: #{user_id}")
-    else
-      Logger.info("Signup successful: #{user_id}")
-    end
+    user_id_hash = :crypto.hash(:md4, user_id)
+    GenServer.cast(TCPServer, {:set_auth_token, token})
+    GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
 
     if user_id == "user1" do
       Process.sleep(1000)
