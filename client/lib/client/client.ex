@@ -29,7 +29,7 @@ defmodule Client do
 
   defp loop() do
     user_id = System.get_env("USER")
-    user_password = "password123"
+    user_password = "password12"
 
     token = Client.Account.signup(user_id, user_password)
 

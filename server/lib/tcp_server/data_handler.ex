@@ -55,18 +55,18 @@ defmodule TCPServer.DataHandler do
         <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
         valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
 
-        Logger.info("Valid? -> #{valid}")
+        if valid do
+          message_data = :erlang.binary_to_term(message)
 
-        message_data = :erlang.binary_to_term(message)
+          # Somehow check if the message sender uuid is valid and corresponds to the user_id
+          valid_sender =
+            GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
 
-        # Somehow check if the message sender uuid is valid and corresponds to the user_id
-        valid_sender =
-          GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_messages, message_data.recipient_uuid, message}
-        )
+          GenServer.call(
+            TCPServer,
+            {:send_data, :res_messages, message_data.recipient_uuid, message}
+          )
+        end
 
       :req_messages ->
         nil
@@ -77,38 +77,40 @@ defmodule TCPServer.DataHandler do
 
         Logger.info("Valid? -> #{valid}")
 
-        requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
+        if valid do
+          requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
 
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_uuid, uuid, requested_uuid}
-        )
+          GenServer.call(
+            TCPServer,
+            {:send_data, :res_uuid, uuid, requested_uuid}
+          )
+        end
 
       :req_id ->
         <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
         valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
 
-        Logger.info("Valid? -> #{valid}")
+        if valid do
+          requested_id = GenServer.call(TCPServer, {:get_client_id, message})
 
-        requested_id = GenServer.call(TCPServer, {:get_client_id, message})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_id, uuid, requested_id}
-        )
+          GenServer.call(
+            TCPServer,
+            {:send_data, :res_id, uuid, requested_id}
+          )
+        end
 
       :req_pub_key ->
         <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
         valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
 
-        Logger.info("Valid? -> #{valid}")
+        if valid do
+          public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
 
-        public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_pub_key, uuid, public_key}
-        )
+          GenServer.call(
+            TCPServer,
+            {:send_data, :res_pub_key, uuid, public_key}
+          )
+        end
 
       _ ->
         nil
