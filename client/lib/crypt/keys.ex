@@ -38,9 +38,6 @@ defmodule Crypt.Keys do
 
   @spec generate_eddh_secret(keypair, binary) :: binary
   def generate_eddh_secret(keypair, foreign_public_key) do
-    Utils.exit_on_nil(keypair, "generate_eddh_secret")
-    Utils.exit_on_nil(keypair.private, "generate_eddh_secret")
-
     shared_key = :crypto.compute_key(:eddh, foreign_public_key, keypair.private, :x25519)
 
     shared_key

@@ -51,10 +51,10 @@ defmodule TCPServer.Connector do
 
         message = id <> token <> message
 
-        DataHandler.send_data(message, type, socket)
+        DataHandler.send_data(socket, type, message)
 
       {:send_data, type, message, :no_auth} ->
-        DataHandler.send_data(message, type, socket)
+        DataHandler.send_data(socket, type, message)
     after
       1000 ->
         nil

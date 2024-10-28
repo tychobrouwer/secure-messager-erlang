@@ -8,31 +8,34 @@ defmodule TCPServerTester do
 
   require Logger
 
-  # test "create_packet" do
-  #   packet_type = :message
-  #   packet_version = 1
-  #   message = ~c"Hello, world!"
+  test "packet_to_int_to_packet" do
+    packet_types = [
+      :ack,
+      :error,
+      :handshake,
+      :handshake_ack,
+      :req_login,
+      :res_login,
+      :req_signup,
+      :res_signup,
+      :req_nonce,
+      :res_nonce,
+      :message,
+      :req_messages,
+      :res_messages,
+      :req_uuid,
+      :res_uuid,
+      :req_id,
+      :res_id,
+      :req_pub_key,
+      :res_pub_key
+    ]
 
-  #   packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, message)
+    for packet_type <- packet_types do
+      packet_int = TCPServer.Utils.packet_to_int(packet_type)
+      packet_type_test = TCPServer.Utils.packet_bin_to_atom(<<packet_int::8>>)
 
-  #   Logger.info("Packet -> #{inspect(packet)}")
-
-  #   assert byte_size(packet) == 35
-  # end
-
-  test "packet_to_int" do
-    assert TCPServer.Utils.packet_to_int(:ack) == 0
-    assert TCPServer.Utils.packet_to_int(:error) == 1
-    assert TCPServer.Utils.packet_to_int(:handshake) == 2
-    assert TCPServer.Utils.packet_to_int(:handshake_ack) == 3
-    assert TCPServer.Utils.packet_to_int(:message) == 4
-  end
-
-  test "packet_bin_to_atom" do
-    assert TCPServer.Utils.packet_bin_to_atom(<<0>>) == :ack
-    assert TCPServer.Utils.packet_bin_to_atom(<<1>>) == :error
-    assert TCPServer.Utils.packet_bin_to_atom(<<2>>) == :handshake
-    assert TCPServer.Utils.packet_bin_to_atom(<<3>>) == :handshake_ack
-    assert TCPServer.Utils.packet_bin_to_atom(<<4>>) == :message
+      assert packet_type == packet_type_test
+    end
   end
 end

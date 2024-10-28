@@ -23,7 +23,8 @@ defmodule Client.Contact do
           {contact_id, contact_uuid}
 
         {contact_id, nil} ->
-          contact_uuid = TCPServer.async_do(fn -> get_uuid(contact_id) end)
+          contact_id_hash = :crypto.hash(:md4, contact_id)
+          contact_uuid = TCPServer.async_do(fn -> get_uuid(contact_id_hash) end)
 
           {contact_id, contact_uuid}
 
@@ -34,8 +35,6 @@ defmodule Client.Contact do
     if GenServer.call(ContactManager, {:get_contact, contact_uuid}) == nil do
       contact_pub_key = TCPServer.async_do(fn -> get_pub_key(contact_uuid) end)
 
-      Utils.exit_on_nil(contact_pub_key, "add_contact")
-
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
 
@@ -43,8 +42,8 @@ defmodule Client.Contact do
   end
 
   @spec get_uuid(binary) :: binary
-  defp get_uuid(contact_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id, :with_auth})
+  defp get_uuid(contact_id_hash) do
+    GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id_hash, :with_auth})
 
     receive do
       {:req_uuid_response, response} ->

@@ -23,14 +23,14 @@ defmodule UserManager do
       user = Map.put(user, :nonce, nil)
       new_state = Map.put(state, user_id, user)
 
-      {:reply, token, new_state}
+      {:reply, %{token: token, valid: true}, new_state}
     else
       nil_token = <<0::size(29 * 8)>>
 
       user = Map.put(user, :nonce, nil)
       new_state = Map.put(state, user_id, user)
 
-      {:reply, nil_token, new_state}
+      {:reply, %{token: nil_token, valid: false}, new_state}
     end
   end
 
@@ -47,11 +47,11 @@ defmodule UserManager do
 
       new_state = Map.put(state, user_id, user)
 
-      {:reply, user.token, new_state}
+      {:reply, %{token: user.token, valid: true}, new_state}
     else
       nil_token = <<0::size(29 * 8)>>
 
-      {:reply, nil_token, state}
+      {:reply, %{token: nil_token, valid: false}, state}
     end
   end
 

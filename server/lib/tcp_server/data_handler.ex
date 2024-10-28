@@ -11,7 +11,12 @@ defmodule TCPServer.DataHandler do
   Handle incoming data.
   """
 
-  @spec handle_data(binary, binary) :: :ok
+  def handle_data(data, _conn_uuid) when not is_binary(data) or byte_size(data) < 22,
+    do: {:error, :invalid_data}
+
+  def handle_data(_data, conn_uuid) when not is_binary(conn_uuid),
+    do: {:error, :invalid_conn_uuid}
+
   def handle_data(data, conn_uuid) do
     <<_version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), message::binary>> =
       data
@@ -28,21 +33,29 @@ defmodule TCPServer.DataHandler do
         nil
 
       :handshake_ack ->
-        <<client_pub_key::binary-size(32), client_id::binary>> = message
-
-        GenServer.cast(TCPServer, {:update_connection, conn_uuid, client_id, client_pub_key})
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil, message})
 
       :req_login ->
         <<user_id::binary-size(16), hashed_password::binary>> = message
 
-        token = GenServer.call(UserManager, {:req_login, uuid, user_id, hashed_password})
+        %{token: token, valid: valid} =
+          GenServer.call(UserManager, {:req_login, uuid, user_id, hashed_password})
+
+        if valid do
+          GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, nil})
+        end
 
         GenServer.call(TCPServer, {:send_data, :res_login, uuid, token})
 
       :req_signup ->
         <<user_id::binary-size(16), hashed_password::binary>> = message
 
-        token = GenServer.call(UserManager, {:req_signup, uuid, user_id, hashed_password})
+        %{token: token, valid: valid} =
+          GenServer.call(UserManager, {:req_signup, uuid, user_id, hashed_password})
+
+        if valid do
+          GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, nil})
+        end
 
         GenServer.call(TCPServer, {:send_data, :res_signup, uuid, token})
 
@@ -77,6 +90,8 @@ defmodule TCPServer.DataHandler do
 
         if valid do
           requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
+
+          Logger.info("Requested UUID -> #{requested_uuid}")
 
           GenServer.call(
             TCPServer,
@@ -117,29 +132,63 @@ defmodule TCPServer.DataHandler do
 
   @doc """
   Send data to the client.
+
+  If the data fails to send, retry up to 10 times before exiting.
   """
 
-  @spec send_data(socket, packet_type, binary, binary) :: :ok | {:error, any}
-  def send_data(socket, type, uuid, message) do
-    packet = create_packet(1, type, uuid, message)
+  def send_data(socket, type, uuid, message, retry_nr \\ 0) do
+    type_int = TCPServer.Utils.packet_to_int(type)
 
-    case :gen_tcp.send(socket, packet) do
-      :ok ->
+    result =
+      create_packet(1, type_int, uuid, message)
+      |> send_packet(socket)
+
+    case result do
+      {:ok, packet} ->
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
-        Logger.warning("Failed to send data -> #{type} : #{reason}")
+        Logger.error("Failed to send data -> #{type} : #{reason}")
+
+        Process.sleep(500)
+
+        if retry_nr < 10 do
+          send_data(message, type, socket, retry_nr + 1)
+        else
+          Logger.error("Failed to send data -> #{type} : #{reason}")
+
+          exit(":failed_to_send_data")
+        end
     end
   end
 
-  @doc """
-  Create a packet from a version, type, and data.
-  """
+  defp send_packet({:error, reason}, _socket), do: {:error, reason}
 
-  @spec create_packet(packet_version, packet_type, binary, binary) :: binary
-  def create_packet(version, type, uuid, data) do
-    type_bin = Utils.packet_to_int(type)
+  defp send_packet(_packet, socket) when not is_port(socket), do: {:error, :invalid_socket}
 
-    <<version::8, type_bin::8>> <> uuid <> <<data::binary>>
+  defp send_packet(packet, socket) do
+    case :gen_tcp.send(socket, packet) do
+      :ok ->
+        {:ok, packet}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_packet(version, _type_int, _uuid, _data) when version != 1,
+    do: {:error, :invalid_packet_version}
+
+  defp create_packet(_version, type_int, _uuid, _data) when not is_integer(type_int),
+    do: {:error, :invalid_packet_type}
+
+  defp create_packet(_version, _type_int, uuid, _data) when not is_binary(uuid),
+    do: {:error, :invalid_packet_uuid}
+
+  defp create_packet(_version, _type_int, _uuid, data) when not is_binary(data),
+    do: {:error, :invalid_packet_data}
+
+  defp create_packet(version, type_int, uuid, data) do
+    <<version::8, type_int::8>> <> uuid <> <<data::binary>>
   end
 end

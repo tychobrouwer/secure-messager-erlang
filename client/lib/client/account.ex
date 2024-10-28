@@ -6,7 +6,9 @@ defmodule Client.Account do
   require Logger
 
   def login(user_id, user_password) do
-    nonce = TCPServer.async_do(fn -> get_nonce(user_id) end)
+    user_id_hash = :crypto.hash(:md4, user_id)
+
+    nonce = TCPServer.async_do(fn -> get_nonce(user_id_hash) end)
 
     Logger.info("Attempting login with user id: #{user_id}")
 
@@ -15,10 +17,14 @@ defmodule Client.Account do
     hashed_password = Bcrypt.Base.hash_password(user_password, local_salt)
     hashed_password_with_nonce = Bcrypt.Base.hash_password(hashed_password, nonce)
 
-    user_id_hash = :crypto.hash(:md4, user_id)
     login_data = user_id_hash <> hashed_password_with_nonce
 
-    TCPServer.async_do(fn -> do_login(login_data) end)
+    token = TCPServer.async_do(fn -> do_login(login_data) end)
+
+    GenServer.cast(TCPServer, {:set_auth_token, token})
+    GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
+
+    token
   end
 
   def signup(user_id, user_password) do
@@ -33,12 +39,16 @@ defmodule Client.Account do
     user_id_hash = :crypto.hash(:md4, user_id)
     signup_data = user_id_hash <> hashed_password
 
-    TCPServer.async_do(fn -> do_signup(signup_data) end)
+    token = TCPServer.async_do(fn -> do_signup(signup_data) end)
+
+    GenServer.cast(TCPServer, {:set_auth_token, token})
+    GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
+
+    token
   end
 
   @spec get_nonce(binary) :: binary
-  defp get_nonce(user_id) do
-    user_id_hash = :crypto.hash(:md4, user_id)
+  defp get_nonce(user_id_hash) do
     GenServer.cast(TCPServer, {:send_data, :req_nonce, user_id_hash, :no_auth})
 
     receive do

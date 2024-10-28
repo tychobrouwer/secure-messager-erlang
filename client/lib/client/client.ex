@@ -28,59 +28,62 @@ defmodule Client do
   end
 
   defp loop() do
-    user_id = System.get_env("USER")
-    user_password = "password12"
+    # user_id = System.get_env("USER")
+    # user_password = "password12"
 
-    token = Client.Account.signup(user_id, user_password)
+    # token = Client.Account.signup(user_id, user_password)
 
-    nil_token = <<0::size(29 * 8)>>
+    # token = Client.Account.signup("test2", "test2")
 
-    token =
-      if token == nil_token do
-        token = Client.Account.login(user_id, user_password)
+    # nil_token = <<0::size(29 * 8)>>
 
-        if token == nil_token do
-          Logger.error("Login failed")
-          exit("Login failed")
-        end
+    # token =
+    #   if token == nil_token do
+    #     token = Client.Account.login(user_id, user_password)
 
-        Logger.info("Login successful: #{user_id}")
+    #     if token == nil_token do
+    #       Logger.error("Login failed")
+    #       exit("Login failed")
+    #     end
 
-        token
-      else
-        Logger.info("Signup successful: #{user_id}")
+    #     Logger.info("Login successful: #{user_id}")
 
-        token
-      end
+    #     token
+    #   else
+    #     Logger.info("Signup successful: #{user_id}")
 
-    user_id_hash = :crypto.hash(:md4, user_id)
-    GenServer.cast(TCPServer, {:set_auth_token, token})
-    GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
+    #     token
+    #   end
 
-    if user_id == "user1" do
-      Process.sleep(1000)
+    # user_id_hash = :crypto.hash(:md4, user_id)
+    # GenServer.cast(TCPServer, {:set_auth_token, token})
+    # GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
 
-      contact_uuid = Client.Contact.add_contact(nil, "user2")
+    # if user_id == "user1" do
+    #   Process.sleep(1000)
 
-      Client.Message.send("Hello World! 1", contact_uuid)
-      Process.sleep(1000)
-      Client.Message.send("Hello World! 2", contact_uuid)
-      Process.sleep(1000)
-      Client.Message.send("Hello World! 3", contact_uuid)
-    end
+    #   contact_uuid = Client.Contact.add_contact(nil, "user2")
 
-    if user_id == "user2" do
-      Process.sleep(6000)
+    #   Client.Message.send("Hello World! 1", contact_uuid)
+    #   Process.sleep(1000)
+    #   Client.Message.send("Hello World! 2", contact_uuid)
+    #   Process.sleep(1000)
+    #   Client.Message.send("Hello World! 3", contact_uuid)
+    # end
 
-      contact_uuid = Client.Contact.add_contact(nil, "user1")
+    # if user_id == "user2" do
+    #   Process.sleep(6000)
 
-      Client.Message.send("Hello World! 4", contact_uuid)
-      Process.sleep(1000)
-      Client.Message.send("Hello World! 5", contact_uuid)
-      Process.sleep(1000)
-      Client.Message.send("Hello World! 6", contact_uuid)
-    end
+    #   contact_uuid = Client.Contact.add_contact(nil, "user1")
 
-    Process.sleep(6000)
+    #   Client.Message.send("Hello World! 4", contact_uuid)
+    #   Process.sleep(1000)
+    #   Client.Message.send("Hello World! 5", contact_uuid)
+    #   Process.sleep(1000)
+    #   Client.Message.send("Hello World! 6", contact_uuid)
+    # end
+
+    # Process.sleep(6000)
+    Process.sleep(1000)
   end
 end

@@ -26,8 +26,6 @@ defmodule TCPServer.DataHandler do
 
     type = TCPServer.Utils.packet_bin_to_atom(type_bin)
 
-    Utils.exit_on_nil(type, "handle_data")
-
     Logger.info("Received data -> #{type} : #{inspect(data)}")
 
     case type do
@@ -40,11 +38,9 @@ defmodule TCPServer.DataHandler do
       :handshake ->
         GenServer.cast(TCPServer, {:set_uuid, data})
 
-        user_id = System.get_env("USER")
         own_keypair = GenServer.call(ContactManager, {:get_keypair})
 
-        res_data = own_keypair.public <> user_id
-        GenServer.cast(TCPServer, {:send_data, :handshake_ack, res_data, :no_auth})
+        GenServer.cast(TCPServer, {:send_data, :handshake_ack, own_keypair.public, :no_auth})
 
       :res_login ->
         pid = GenServer.call(TCPServer, {:get_receive_pid})
@@ -82,31 +78,66 @@ defmodule TCPServer.DataHandler do
 
   @doc """
   Send data to the client.
+
+  If the data fails to send, retry up to 10 times before exiting.
   """
 
-  @spec send_data(binary, packet_type, socket) :: :ok | {:error, any}
-  def send_data(message, type, socket) do
-    packet = create_packet(1, type, message)
+  def send_data(socket, type, message, retry_nr \\ 0) do
+    type_int = TCPServer.Utils.packet_to_int(type)
 
-    case :gen_tcp.send(socket, packet) do
-      :ok ->
+    result =
+      create_packet(1, type_int, message)
+      |> send_packet(socket)
+
+    case result do
+      {:ok, packet} ->
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
 
       {:error, reason} ->
-        Logger.warning("Failed to send data -> #{type} : #{reason}")
+        Logger.error("Failed to send data -> #{type} : #{reason}")
+
+        Process.sleep(500)
+
+        if retry_nr < 10 do
+          send_data(message, type, socket, retry_nr + 1)
+        else
+          Logger.error("Failed to send data -> #{type} : #{reason}")
+
+          exit(":failed_to_send_data")
+        end
     end
   end
 
-  @doc """
-  Create a packet from a version, type, and data.
-  """
+  defp send_packet({:error, reason}, _socket), do: {:error, reason}
 
-  @spec create_packet(packet_version, packet_type, binary) :: binary
-  def create_packet(version, type, data) do
-    type_bin = TCPServer.Utils.packet_to_int(type)
+  defp send_packet(_packet, socket) when not is_port(socket), do: {:error, :invalid_socket}
 
+  defp send_packet(packet, socket) do
+    case :gen_tcp.send(socket, packet) do
+      :ok ->
+        {:ok, packet}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_packet(version, _type_int, _data) when version != 1,
+    do: {:error, :invalid_packet_version}
+
+  defp create_packet(_version, type_int, _data) when not is_integer(type_int),
+    do: {:error, :invalid_packet_type}
+
+  defp create_packet(_version, _type_int, data) when not is_binary(data),
+    do: {:error, :invalid_packet_data}
+
+  defp create_packet(version, type_int, data) do
     uuid = GenServer.call(TCPServer, {:get_uuid})
 
-    <<version::8, type_bin::8>> <> uuid <> <<data::binary>>
+    if is_binary(uuid) do
+      <<version::8, type_int::8>> <> uuid <> <<data::binary>>
+    else
+      {:error, :invalid_uuid}
+    end
   end
 end

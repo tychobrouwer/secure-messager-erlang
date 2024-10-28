@@ -7,7 +7,7 @@ defmodule Server.Application do
     address = ~c"127.0.0.1"
 
     children = [
-      {Client, []},
+      # {Client, []},
       {ContactManager, []},
       {TCPServer, []},
       Supervisor.child_spec({Task, fn -> TCPServer.Connector.connect(address, port) end},

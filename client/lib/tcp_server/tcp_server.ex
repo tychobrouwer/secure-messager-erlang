@@ -1,6 +1,12 @@
 defmodule TCPServer do
   use GenServer
 
+  defmacro verify_bin(binary, length) do
+    quote do
+      is_binary(unquote(binary)) and byte_size(unquote(binary)) == unquote(length)
+    end
+  end
+
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -11,13 +17,13 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:set_uuid, uuid}, state) do
+  def handle_cast({:set_uuid, uuid}, state) when verify_bin(uuid, 20) do
     new_state = Map.put(state, "uuid", uuid)
     {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:add_connection, pid}, state) do
+  def handle_cast({:add_connection, pid}, state) when is_pid(pid) do
     new_state = Map.put(state, "tcp_pid", pid)
     {:noreply, new_state}
   end
@@ -38,18 +44,18 @@ defmodule TCPServer do
 
   @impl true
   @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
-  def handle_cast({:set_receive_pid, pid}, state) do
+  def handle_cast({:set_receive_pid, pid}, state) when is_pid(pid) do
     new_state = Map.put(state, "receive_pid", pid)
     {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:set_auth_token, token}, state) do
+  def handle_cast({:set_auth_token, token}, state) when verify_bin(token, 29) do
     {:noreply, Map.put(state, :auth_token, token)}
   end
 
   @impl true
-  def handle_cast({:set_auth_id, id}, state) do
+  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 16) do
     {:noreply, Map.put(state, :auth_id, id)}
   end
 
