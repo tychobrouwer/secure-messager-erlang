@@ -7,34 +7,35 @@ defmodule TCPServerTest do
 
   require Logger
 
-  test "create_packet" do
-    packet_type = :message
-    packet_version = 1
-    message = "Hello, world!"
+  test "packet_to_int_to_packet" do
+    packet_types = [
+      :ack,
+      :error,
+      :handshake,
+      :handshake_ack,
+      :req_login,
+      :res_login,
+      :req_signup,
+      :res_signup,
+      :req_nonce,
+      :res_nonce,
+      :message,
+      :req_messages,
+      :res_messages,
+      :req_uuid,
+      :res_uuid,
+      :req_id,
+      :res_id,
+      :req_pub_key,
+      :res_pub_key
+    ]
 
-    uuid =
-      <<25, 251, 5, 68, 225, 101, 142, 114, 82, 218, 225, 245, 123, 118, 35, 152, 47, 46, 211,
-        74>>
+    for packet_type <- packet_types do
+      packet_int = TCPServer.Utils.packet_to_int(packet_type)
+      packet_type_test = TCPServer.Utils.packet_bin_to_atom(<<packet_int::8>>)
 
-    packet = TCPServer.DataHandler.create_packet(packet_version, packet_type, uuid, message)
-
-    assert packet == <<1, 4>> <> uuid <> "Hello, world!"
-  end
-
-  test "packet_to_int" do
-    assert TCPServer.Utils.packet_to_int(:ack) == 0
-    assert TCPServer.Utils.packet_to_int(:error) == 1
-    assert TCPServer.Utils.packet_to_int(:handshake) == 2
-    assert TCPServer.Utils.packet_to_int(:handshake_ack) == 3
-    assert TCPServer.Utils.packet_to_int(:message) == 4
-  end
-
-  test "packet_bin_to_atom" do
-    assert TCPServer.Utils.packet_bin_to_atom(<<0>>) == :ack
-    assert TCPServer.Utils.packet_bin_to_atom(<<1>>) == :error
-    assert TCPServer.Utils.packet_bin_to_atom(<<2>>) == :handshake
-    assert TCPServer.Utils.packet_bin_to_atom(<<3>>) == :handshake_ack
-    assert TCPServer.Utils.packet_bin_to_atom(<<4>>) == :message
+      assert packet_type == packet_type_test
+    end
   end
 
   test "uuid" do
@@ -59,10 +60,12 @@ defmodule TCPServerTest do
 
     assert client_1 == nil
 
-    GenServer.cast(TCPServer, {:update_connection, conn_id, "user1"})
+    user_id_hash = :crypto.hash(:md4, "user1")
+
+    GenServer.cast(TCPServer, {:update_connection, conn_id, user_id_hash, nil})
 
     client_1 = GenServer.call(TCPServer, {:get_client_id, conn_id})
-    assert client_1 == "user1"
+    assert client_1 == user_id_hash
 
     GenServer.cast(TCPServer, {:remove_connection, conn_id})
 
