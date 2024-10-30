@@ -6,24 +6,21 @@ defmodule TCPServer.DataHandler do
   @type socket :: :inet.socket()
 
   @doc """
-  Handle incoming data.
-  """
+    Handle incoming data.
+    """
 
-  @spec handle_data(binary) :: :ok
+
+  def handle_data(data, _conn_uuid) when not is_binary(data) or byte_size(data) < 22,
+    do: {:error, :invalid_packet_data}
+
   def handle_data(packet_data) do
-    %{version: _version, type_bin: type_bin, uuid: _uuid, data: data} =
-      try do
-        <<version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
-          packet_data
-
-        %{version: version, type_bin: type_bin, uuid: uuid, data: data}
-      catch
-        _ ->
-          Logger.error("Failed to parse packet data -> #{inspect(packet_data)}")
-
-          exit(":failed_to_parse_packet_handle_data")
-      end
-
+    %{
+      version: _version,
+      type_bin: type_bin,
+      uuid: _uuid,
+      data: data
+    } = parse_packet(packet_data)
+    
     type = TCPServer.Utils.packet_bin_to_atom(type_bin)
 
     Logger.info("Received data -> #{type} : #{inspect(data)}")
@@ -38,21 +35,31 @@ defmodule TCPServer.DataHandler do
       :handshake ->
         GenServer.cast(TCPServer, {:set_uuid, data})
 
-        own_keypair = GenServer.call(ContactManager, {:get_keypair})
-
-        GenServer.cast(TCPServer, {:send_data, :handshake_ack, own_keypair.public, :no_auth})
+        case GenServer.call(ContactManager, {:get_keypair}) do
+          nil -> nil
+          own_key_pair -> GenServer.cast(
+            TCPServer,
+            {:send_data, :handshake_ack, own_keypair.public, :no_auth}
+          )
+        end
 
       :res_login ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_login_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_login_response, data})
+        end
 
       :res_signup ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_signup_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_signup_response, data})
+        end
 
       :res_nonce ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_nonce_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_nonce_response, data})
+        end
 
       :res_messages ->
         Task.async(fn ->
@@ -60,20 +67,33 @@ defmodule TCPServer.DataHandler do
         end)
 
       :res_uuid ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_uuid_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_uuid_response, data})
+        end
 
       :res_id ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_id_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_id_response, data})
+        end
 
       :res_pub_key ->
-        pid = GenServer.call(TCPServer, {:get_receive_pid})
-        send(pid, {:req_pub_key_response, data})
+        case GenServer.call(TCPServer, {:get_receive_pid}) do
+          nil -> nil
+          pid -> send(pid, {:req_pub_key_response, data})
+        end
 
       _ ->
         nil
     end
+  end
+
+  defp parse_packet(packet_data) do
+    <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
+      packet_data
+
+    %{version: version, type_bin: type_bin, uuid: uuid, data: data}
   end
 
   @doc """

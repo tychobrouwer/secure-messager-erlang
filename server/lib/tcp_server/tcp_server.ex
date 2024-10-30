@@ -105,8 +105,8 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_client_id, conn_uuid}, _from, state) when verify_bin(conn_uuid, 20) do
-    case Map.get(state, conn_uuid) do
+  def handle_call({:get_client_id, client_uuid}, _from, state) when verify_bin(client_uuid, 20) do
+    case Map.get(state, client_uuid) do
       %{client_id: client_id} ->
         {:reply, client_id, state}
 
@@ -116,9 +116,9 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_client_pub_key, conn_uuid}, _from, state)
-      when verify_bin(conn_uuid, 20) do
-    case Map.get(state, conn_uuid) do
+  def handle_call({:get_client_pub_key, client_uuid}, _from, state)
+      when verify_bin(client_uuid, 20) do
+    case Map.get(state, client_uuid) do
       %{client_pub_key: client_pub_key} ->
         {:reply, client_pub_key, state}
 

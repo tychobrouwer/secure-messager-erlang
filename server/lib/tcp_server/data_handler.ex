@@ -18,26 +18,37 @@ defmodule TCPServer.DataHandler do
     do: {:error, :invalid_conn_uuid}
 
   def handle_data(data, conn_uuid) do
-    <<_version::binary-size(1), type_bin::binary-size(1), uuid::binary-size(20), message::binary>> =
-      data
+    %{
+      version: _version,
+      type_bin: type_bin,
+      uuid: uuid,
+      data: data
+    } = parse_packet(packet_data)
 
     type = Utils.packet_bin_to_atom(type_bin)
+    
+    packet_data = parse_packet_data(data, uuid, Utils.packet_auth_needed(type))
 
-    Logger.info("Received data -> #{type} : #{inspect(message)}")
+    Logger.info("Received data -> #{type} : #{inspect(data)}")
 
-    case type do
-      :ack ->
+    case {type, packet_data} do
+      {:ack, _packet_data} ->
         nil
 
-      :error ->
+      {:error, _packet_data} ->
         nil
 
-      :handshake_ack ->
-        GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil, message})
+      {:handshake_ack, _packet_data} ->
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil, data})
 
-      :req_login ->
-        <<user_id::binary-size(16), hashed_password::binary>> = message
+      {:req_nonce, _packet_data} ->
+        nonce = GenServer.call(UserManager, {:req_nonce, message})
 
+        GenServer.call(TCPServer, {:send_data, :res_nonce, uuid, nonce})
+
+      { _type, {:error, reason}} -> Logger.warning(inspect(reason))
+      
+      {:req_login, {user_id, hashed_password}} ->
         %{token: token, valid: valid} =
           GenServer.call(UserManager, {:req_login, uuid, user_id, hashed_password})
 
@@ -47,9 +58,7 @@ defmodule TCPServer.DataHandler do
 
         GenServer.call(TCPServer, {:send_data, :res_login, uuid, token})
 
-      :req_signup ->
-        <<user_id::binary-size(16), hashed_password::binary>> = message
-
+      {:req_signup, {user_id, hashed_password}} ->
         %{token: token, valid: valid} =
           GenServer.call(UserManager, {:req_signup, uuid, user_id, hashed_password})
 
@@ -59,74 +68,76 @@ defmodule TCPServer.DataHandler do
 
         GenServer.call(TCPServer, {:send_data, :res_signup, uuid, token})
 
-      :req_nonce ->
-        nonce = GenServer.call(UserManager, {:req_nonce, message})
+      {:message, {user_id, message_bin}} ->
+        message_data = :erlang.binary_to_term(message_bin)
 
-        GenServer.call(TCPServer, {:send_data, :res_nonce, uuid, nonce})
+        valid_sender =
+          GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
 
-      :message ->
-        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
-        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_messages, message_data.recipient_uuid, data}
+        )
 
-        if valid do
-          message_data = :erlang.binary_to_term(message)
-
-          # Somehow check if the message sender uuid is valid and corresponds to the user_id
-          valid_sender =
-            GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
-
-          GenServer.call(
-            TCPServer,
-            {:send_data, :res_messages, message_data.recipient_uuid, message}
-          )
-        end
-
-      :req_messages ->
+      {:req_messages, {user_id, data}} ->
         nil
 
-      :req_uuid ->
-        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
-        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+      {:req_uuid, {user_id, client_id}} ->
+        requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, client_id})
 
-        if valid do
-          requested_uuid = GenServer.call(TCPServer, {:get_client_uuid, message})
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_uuid, uuid, requested_uuid}
+        )
 
-          Logger.info("Requested UUID -> #{requested_uuid}")
+      {:req_id, {user_id, client_uuid}} ->
+        requested_id = GenServer.call(TCPServer, {:get_client_id, client_uuid})
 
-          GenServer.call(
-            TCPServer,
-            {:send_data, :res_uuid, uuid, requested_uuid}
-          )
-        end
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_id, uuid, requested_id}
+        )
 
-      :req_id ->
-        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
-        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
+      {:req_pub_key, {user_id, client_uuid}} ->
+        public_key = GenServer.call(TCPServer, {:get_client_pub_key, client_uuid})
 
-        if valid do
-          requested_id = GenServer.call(TCPServer, {:get_client_id, message})
-
-          GenServer.call(
-            TCPServer,
-            {:send_data, :res_id, uuid, requested_id}
-          )
-        end
-
-      :req_pub_key ->
-        <<user_id::binary-size(16), token::binary-size(29), message::binary>> = message
-        valid = GenServer.call(UserManager, {:verify_token, uuid, user_id, token})
-
-        if valid do
-          public_key = GenServer.call(TCPServer, {:get_client_pub_key, message})
-
-          GenServer.call(
-            TCPServer,
-            {:send_data, :res_pub_key, uuid, public_key}
-          )
-        end
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_pub_key, uuid, public_key}
+        )
 
       _ ->
         nil
+    end
+  end
+
+  defp parse_packet(packet_data) do
+    <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
+      packet_data
+
+    %{version: version, type_bin: type_bin, uuid: uuid, data: data}
+  end
+
+  defp parse_packet_data({:error, reason}, _uuid, _auth_needed), do: {:error, reason}
+
+  defp parse_packet_data(packet_data, _uuid, false) when byte_size(packet_data) < 16,
+    do: {:error, :invalid_packet_token}
+ 
+  defp parse_packet_data(packet_data, _uuid, true) when byte_size(packet_data) < 16 + 29,
+    do: {:error, :invalid_packet_token}
+
+  defp parse_packet_data(packet_data, _uuid, false) do
+    <<user_id::binary-size(16), data::binary>> = packet_data
+
+    %{user_id: user_id, data: data}
+  end
+
+  defp parse_packet_data(packet_data, uuid, true) do
+    <<user_id::binary-size(16), token::binary-size(29), data::binary>> = packet_data
+
+    case GenServer.call(UserManager, {:verify_token, uuid, user_id, token}) do
+      false -> {:error, :invalid_packet_verify}
+      true -> %{user_id: user_id, data: data}
     end
   end
 

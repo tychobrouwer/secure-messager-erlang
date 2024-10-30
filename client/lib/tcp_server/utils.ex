@@ -47,7 +47,7 @@ defmodule TCPServer.Utils do
   end
 
   @spec packet_bin_to_atom(binary) :: packet_type | nil
-  def packet_bin_to_atom(type) when is_binary(type) do
+  def packet_bin_to_atom(type) do
     case type do
       <<0>> -> :ack
       <<1>> -> :error

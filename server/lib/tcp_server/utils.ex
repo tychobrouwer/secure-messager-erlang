@@ -20,6 +20,14 @@ defmodule TCPServer.Utils do
           | :req_pub_key
           | :res_pub_key
 
+  def packet_auth_needed(packet_type) do
+    packet_type == :message or
+      packet_type == :req_messages or
+      packet_type == :req_uuid or
+      packet_type == :req_id or
+      packet_type == :req_pub_key
+  end
+
   @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
     case type do
