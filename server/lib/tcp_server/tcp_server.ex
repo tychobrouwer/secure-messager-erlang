@@ -34,12 +34,12 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:update_connection, conn_uuid, client_id, client_pub_key}, state)
-      when verify_bin(conn_uuid, 20) and verify_bin(client_id, 16) and
-             verify_bin(client_pub_key, 32) do
+  def handle_cast({:update_connection, conn_uuid, user_id, user_pub_key}, state)
+      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 16) and
+             verify_bin(user_pub_key, 32) do
     if Map.has_key?(state, conn_uuid) do
-      new_state = put_in(state, [conn_uuid, :client_id], client_id)
-      new_state = put_in(new_state, [conn_uuid, :client_pub_key], client_pub_key)
+      new_state = put_in(state, [conn_uuid, :user_id], user_id)
+      new_state = put_in(new_state, [conn_uuid, :user_pub_key], user_pub_key)
 
       {:noreply, new_state}
     else
@@ -48,10 +48,10 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:update_connection, conn_uuid, client_id, _client_pub_key}, state)
-      when verify_bin(conn_uuid, 20) and verify_bin(client_id, 16) do
+  def handle_cast({:update_connection, conn_uuid, user_id, _user_pub_key}, state)
+      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 16) do
     if Map.has_key?(state, conn_uuid) do
-      new_state = put_in(state, [conn_uuid, :client_id], client_id)
+      new_state = put_in(state, [conn_uuid, :user_id], user_id)
 
       {:noreply, new_state}
     else
@@ -60,10 +60,10 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:update_connection, conn_uuid, _client_id, client_pub_key}, state)
-      when verify_bin(conn_uuid, 20) and verify_bin(client_pub_key, 32) do
+  def handle_cast({:update_connection, conn_uuid, _user_id, user_pub_key}, state)
+      when verify_bin(conn_uuid, 20) and verify_bin(user_pub_key, 32) do
     if Map.has_key?(state, conn_uuid) do
-      new_state = put_in(state, [conn_uuid, :client_pub_key], client_pub_key)
+      new_state = put_in(state, [conn_uuid, :user_pub_key], user_pub_key)
 
       {:noreply, new_state}
     else
@@ -86,43 +86,43 @@ defmodule TCPServer do
         send(pid, {:send_data, type, message})
         {:reply, :ok, state}
 
-      nil ->
+      _ ->
         {:reply, nil, state}
     end
   end
 
   @impl true
-  def handle_call({:get_client_uuid, client_id}, _from, state) when verify_bin(client_id, 16) do
-    conn = Enum.find(state, fn {_key, conn} -> conn.client_id == client_id end)
+  def handle_call({:get_user_uuid, user_id}, _from, state) when verify_bin(user_id, 16) do
+    conn = Enum.find(state, fn {_key, conn} -> conn.user_id == user_id end)
 
     case conn do
       {conn_uuid, _} ->
         {:reply, conn_uuid, state}
 
-      nil ->
+      _ ->
         {:reply, nil, state}
     end
   end
 
   @impl true
-  def handle_call({:get_client_id, client_uuid}, _from, state) when verify_bin(client_uuid, 20) do
-    case Map.get(state, client_uuid) do
-      %{client_id: client_id} ->
-        {:reply, client_id, state}
+  def handle_call({:get_user_id, user_uuid}, _from, state) when verify_bin(user_uuid, 20) do
+    case Map.get(state, user_uuid) do
+      %{user_id: user_id} ->
+        {:reply, user_id, state}
 
-      nil ->
+      _ ->
         {:reply, nil, state}
     end
   end
 
   @impl true
-  def handle_call({:get_client_pub_key, client_uuid}, _from, state)
-      when verify_bin(client_uuid, 20) do
-    case Map.get(state, client_uuid) do
-      %{client_pub_key: client_pub_key} ->
-        {:reply, client_pub_key, state}
+  def handle_call({:get_user_pub_key, user_uuid}, _from, state)
+      when verify_bin(user_uuid, 20) do
+    case Map.get(state, user_uuid) do
+      %{user_pub_key: user_pub_key} ->
+        {:reply, user_pub_key, state}
 
-      nil ->
+      _ ->
         {:reply, nil, state}
     end
   end

@@ -20,12 +20,20 @@ defmodule TCPServer.Utils do
           | :req_pub_key
           | :res_pub_key
 
-  def packet_auth_needed(packet_type) do
-    packet_type == :message or
-      packet_type == :req_messages or
-      packet_type == :req_uuid or
-      packet_type == :req_id or
-      packet_type == :req_pub_key
+  @type packet_response_type ::
+    :plain
+    | :no_auth
+    | :with_auth
+
+  def get_packet_response_type(packet_type) do
+    case packet_type do
+      type when type == :ack or type == :error or type == :handshake_ack or type == :req_nonce ->
+        :plain
+      type when type == :req_login or type == :req_signup ->
+        :no_auth
+      _ ->
+        :with_auth
+    end
   end
 
   @spec packet_to_int(packet_type) :: integer | nil
