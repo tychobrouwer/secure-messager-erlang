@@ -77,12 +77,12 @@ defmodule TCPServer.DataHandler do
 
       {:message, {user_id, message_bin}} ->
         case :erlang.binary_to_term(message_bin, [:safe]) do
-          %{sender_uuid: sender_uuid} ->
+          %{sender_uuid: sender_uuid, recipient_uuid: recipient_uuid} ->
             case GenServer.call(UserManager, {:verify_user_uuid_id, sender_uuid, user_id}) do
               true -> 
                 GenServer.call(
                   TCPServer,
-                  {:send_data, :res_messages, message_data.recipient_uuid, data}
+                  {:send_data, :res_messages, recipient_uuid, data}
                 )
               false ->
                 GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_sender_uuid})
