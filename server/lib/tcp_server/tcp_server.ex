@@ -1,13 +1,11 @@
 defmodule TCPServer do
+  require TCPServer
   use GenServer
 
   require Logger
 
-  defmacro verify_bin(binary, length) do
-    quote do
-      is_binary(unquote(binary)) and byte_size(unquote(binary)) == unquote(length)
-    end
-  end
+  defguardp verify_bin_test(binary, length)
+    when is_binary(binary) and byte_size(binary) == length
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -124,6 +122,16 @@ defmodule TCPServer do
 
       _ ->
         {:reply, nil, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:verify_user_uuid_id, user_uuid, user_id}, _from, state)
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) do
+    case Map.get(state, user_uuid) do
+      %{user_id: user_id_stored} when user_id == user_id_stored ->
+        {:reply, true, state}
+      _ -> {:reply, false, state}
     end
   end
 

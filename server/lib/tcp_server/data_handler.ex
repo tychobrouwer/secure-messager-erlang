@@ -1,6 +1,7 @@
 defmodule TCPServer.DataHandler do
   require Logger
 
+  alias ElixirLS.LanguageServer.Providers.ExecuteCommand.GetExUnitTestsInFile
   alias TCPServer.Utils, as: Utils
 
   @type packet_version :: 1
@@ -12,23 +13,23 @@ defmodule TCPServer.DataHandler do
   Handle incoming data.
   """
 
-  def handle_data(data, _conn_uuid) when not is_binary(data) or byte_size(data) < 22,
-    do: {:error, :invalid_data}
+  def handle_data(packet, _conn_uuid) when not is_binary(packet) or byte_size(packet) < 22,
+    do: {:error, :invalid_packet}
 
-  def handle_data(_data, conn_uuid) when not is_binary(conn_uuid),
+  def handle_data(_packet, conn_uuid) when not is_binary(conn_uuid),
     do: {:error, :invalid_conn_uuid}
 
-  def handle_data(data, conn_uuid) do
+  def handle_data(packet, conn_uuid) do
     %{
       version: _version,
       type_bin: type_bin,
       uuid: uuid,
-      data: data
-    } = parse_packet(packet_data)
+      data: packet_data
+    } = parse_packet(packet)
 
     type = Utils.packet_bin_to_atom(type_bin)
     
-    packet_data = parse_packet_data(data, uuid, Utils.get_packet_response_type(type))
+    packet_data = parse_packet_data(packet_data, uuid, Utils.get_packet_response_type(type))
 
     Logger.info("Received data -> #{type} : #{inspect(data)}")
 
@@ -41,7 +42,7 @@ defmodule TCPServer.DataHandler do
       {:ack, _packet_data} ->
         nil
 
-      {:error, _packet_data} ->
+      {:error, packet_data} ->
         nil
 
       {:handshake_ack, {_user_id, user_pub_key}} ->
@@ -58,9 +59,10 @@ defmodule TCPServer.DataHandler do
 
         if valid do
           GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, nil})
+          GenServer.call(TCPServer, {:send_data, :res_login, uuid, token})
+        else
+          GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_login})
         end
-
-        GenServer.call(TCPServer, {:send_data, :res_login, uuid, token})
 
       {:req_signup, {user_id, hashed_password}} ->
         %{token: token, valid: valid} =
@@ -68,47 +70,58 @@ defmodule TCPServer.DataHandler do
 
         if valid do
           GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, nil})
+          GenServer.call(TCPServer, {:send_data, :res_signup, uuid, token})
+        else
+          GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_signup})
         end
 
-        GenServer.call(TCPServer, {:send_data, :res_signup, uuid, token})
-
       {:message, {user_id, message_bin}} ->
-        message_data = :erlang.binary_to_term(message_bin)
-
-        valid_sender =
-          GenServer.call(UserManager, {:verify_token, message_data.sender_uuid, user_id, token})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_messages, message_data.recipient_uuid, data}
-        )
+        case :erlang.binary_to_term(message_bin, [:safe]) do
+          %{sender_uuid: sender_uuid} ->
+            case GenServer.call(UserManager, {:verify_user_uuid_id, sender_uuid, user_id}) do
+              true -> 
+                GenServer.call(
+                  TCPServer,
+                  {:send_data, :res_messages, message_data.recipient_uuid, data}
+                )
+              false ->
+                GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_sender_uuid})
+            end
+          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_data})
+        end
 
       {:req_messages, {user_id, data}} ->
         nil
 
       {:req_uuid, {user_id, user_id}} ->
-        requested_uuid = GenServer.call(TCPServer, {:get_user_uuid, user_id})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_uuid, uuid, requested_uuid}
-        )
+        case GenServer.call(TCPServer, {:get_user_uuid, user_id}) do
+          requested_uuid ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :res_uuid, uuid, requested_uuid}
+            )
+          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_uuid})
+        end
 
       {:req_id, {user_id, user_uuid}} ->
-        requested_id = GenServer.call(TCPServer, {:get_user_id, user_uuid})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_id, uuid, requested_id}
-        )
+        case GenServer.call(TCPServer, {:get_user_id, user_uuid}) do
+          requested_id ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :res_id, uuid, requested_id}
+            )
+          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_id})
+        end
 
       {:req_pub_key, {user_id, user_uuid}} ->
-        public_key = GenServer.call(TCPServer, {:get_user_pub_key, user_uuid})
-
-        GenServer.call(
-          TCPServer,
-          {:send_data, :res_pub_key, uuid, public_key}
-        )
+        case GenServer.call(TCPServer, {:get_user_pub_key, user_uuid}) do
+          public_key ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :res_pub_key, uuid, public_key}
+            )
+          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_public_key})
+        end
 
       _ ->
         nil

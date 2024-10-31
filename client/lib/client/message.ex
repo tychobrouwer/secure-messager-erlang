@@ -31,7 +31,7 @@ defmodule Client.Message do
 
   @spec receive(binary) :: :ok
   def receive(message) do
-    message_data = :erlang.binary_to_term(message)
+    message_data = :erlang.binary_to_term(message, [:safe])
 
     contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_uuid})
 
