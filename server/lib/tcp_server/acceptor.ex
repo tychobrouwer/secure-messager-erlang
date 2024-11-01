@@ -1,7 +1,6 @@
 defmodule TCPServer.Acceptor do
   require Logger
 
-  alias ElixirSense.Log
   alias TCPServer.DataHandler, as: DataHandler
   alias TCPServer.Utils, as: Utils
 

@@ -1,7 +1,6 @@
 defmodule TCPServer.DataHandler do
   require Logger
 
-  alias ElixirLS.LanguageServer.Providers.ExecuteCommand.GetExUnitTestsInFile
   alias TCPServer.Utils, as: Utils
 
   @type packet_version :: 1
@@ -28,13 +27,13 @@ defmodule TCPServer.DataHandler do
     } = parse_packet(packet)
 
     type = Utils.packet_bin_to_atom(type_bin)
-    
+
     packet_data = parse_packet_data(packet_data, uuid, Utils.get_packet_response_type(type))
 
-    Logger.info("Received data -> #{type} : #{inspect(data)}")
+    Logger.info("Received data -> #{type} : #{inspect(packet_data)}")
 
     case {type, packet_data} do
-      { _type, {:error, reason}} ->
+      {_type, {:error, reason}} ->
         Logger.warning(inspect(reason))
 
         GenServer.call(TCPServer, {:send_data, :error, reason})
@@ -42,7 +41,7 @@ defmodule TCPServer.DataHandler do
       {:ack, _packet_data} ->
         nil
 
-      {:error, packet_data} ->
+      {:error, _packet_data} ->
         nil
 
       {:handshake_ack, {_user_id, user_pub_key}} ->
@@ -79,48 +78,60 @@ defmodule TCPServer.DataHandler do
         case :erlang.binary_to_term(message_bin, [:safe]) do
           %{sender_uuid: sender_uuid, recipient_uuid: recipient_uuid} ->
             case GenServer.call(UserManager, {:verify_user_uuid_id, sender_uuid, user_id}) do
-              true -> 
+              true ->
                 GenServer.call(
                   TCPServer,
-                  {:send_data, :res_messages, recipient_uuid, data}
+                  {:send_data, :res_messages, recipient_uuid, message_bin}
                 )
+
               false ->
-                GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_sender_uuid})
+                GenServer.call(
+                  TCPServer,
+                  {:send_data, :error, uuid, :invalid_message_sender_uuid}
+                )
             end
-          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_data})
+
+          _ ->
+            GenServer.call(TCPServer, {:send_data, :error, uuid, :invalid_message_data})
         end
 
-      {:req_messages, {user_id, data}} ->
+      {:req_messages, {_user_id, _data}} ->
         nil
 
-      {:req_uuid, {user_id, user_id}} ->
-        case GenServer.call(TCPServer, {:get_user_uuid, user_id}) do
+      {:req_uuid, {_user_id, requested_user_id}} ->
+        case GenServer.call(TCPServer, {:get_user_uuid, requested_user_id}) do
+          nil ->
+            GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_uuid})
+
           requested_uuid ->
             GenServer.call(
               TCPServer,
               {:send_data, :res_uuid, uuid, requested_uuid}
             )
-          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_uuid})
         end
 
-      {:req_id, {user_id, user_uuid}} ->
+      {:req_id, {_user_id, user_uuid}} ->
         case GenServer.call(TCPServer, {:get_user_id, user_uuid}) do
+          nil ->
+            GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_id})
+
           requested_id ->
             GenServer.call(
               TCPServer,
               {:send_data, :res_id, uuid, requested_id}
             )
-          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_id})
         end
 
-      {:req_pub_key, {user_id, user_uuid}} ->
+      {:req_pub_key, {_user_id, user_uuid}} ->
         case GenServer.call(TCPServer, {:get_user_pub_key, user_uuid}) do
+          nil ->
+            GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_public_key})
+
           public_key ->
             GenServer.call(
               TCPServer,
               {:send_data, :res_pub_key, uuid, public_key}
             )
-          _ -> GenServer.call(TCPServer, {:send_data, :error, uuid, :failed_to_find_public_key})
         end
 
       _ ->
@@ -140,7 +151,7 @@ defmodule TCPServer.DataHandler do
 
   defp parse_packet_data(packet_data, _uuid, :no_auth) when byte_size(packet_data) < 16,
     do: {:error, :invalid_packet_no_auth}
- 
+
   defp parse_packet_data(packet_data, _uuid, :with_auth) when byte_size(packet_data) < 16 + 29,
     do: {:error, :invalid_packet_with_auth}
 

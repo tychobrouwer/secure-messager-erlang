@@ -1,11 +1,10 @@
 defmodule TCPServer do
-  require TCPServer
   use GenServer
 
   require Logger
 
-  defguardp verify_bin_test(binary, length)
-    when is_binary(binary) and byte_size(binary) == length
+  defguardp verify_bin(binary, length)
+            when is_binary(binary) and byte_size(binary) == length
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -131,7 +130,9 @@ defmodule TCPServer do
     case Map.get(state, user_uuid) do
       %{user_id: user_id_stored} when user_id == user_id_stored ->
         {:reply, true, state}
-      _ -> {:reply, false, state}
+
+      _ ->
+        {:reply, false, state}
     end
   end
 

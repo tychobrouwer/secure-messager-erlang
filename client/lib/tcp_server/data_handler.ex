@@ -6,9 +6,8 @@ defmodule TCPServer.DataHandler do
   @type socket :: :inet.socket()
 
   @doc """
-    Handle incoming data.
-    """
-
+  Handle incoming data.
+  """
 
   def handle_data(data, _conn_uuid) when not is_binary(data) or byte_size(data) < 22,
     do: {:error, :invalid_packet_data}
@@ -20,7 +19,7 @@ defmodule TCPServer.DataHandler do
       uuid: _uuid,
       data: data
     } = parse_packet(packet_data)
-    
+
     type = TCPServer.Utils.packet_bin_to_atom(type_bin)
 
     Logger.info("Received data -> #{type} : #{inspect(data)}")
@@ -36,11 +35,14 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:set_uuid, data})
 
         case GenServer.call(ContactManager, {:get_keypair}) do
-          nil -> nil
-          own_key_pair -> GenServer.cast(
-            TCPServer,
-            {:send_data, :handshake_ack, own_keypair.public, :no_auth}
-          )
+          nil ->
+            nil
+
+          own_key_pair ->
+            GenServer.cast(
+              TCPServer,
+              {:send_data, :handshake_ack, own_keypair.public, :no_auth}
+            )
         end
 
       :res_login ->

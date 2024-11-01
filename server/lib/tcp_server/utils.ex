@@ -21,16 +21,18 @@ defmodule TCPServer.Utils do
           | :res_pub_key
 
   @type packet_response_type ::
-    :plain
-    | :no_auth
-    | :with_auth
+          :plain
+          | :no_auth
+          | :with_auth
 
   def get_packet_response_type(packet_type) do
     case packet_type do
       type when type == :ack or type == :error or type == :handshake_ack or type == :req_nonce ->
         :plain
+
       type when type == :req_login or type == :req_signup ->
         :no_auth
+
       _ ->
         :with_auth
     end

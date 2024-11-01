@@ -1,29 +1,31 @@
 defmodule TCPServer.Utils do
   @type packet_type ::
-    :ack
-    | :error
-    | :handshake
-    | :handshake_ack
-    | :req_login
-    | :res_login
-    | :req_signup
-    | :res_signup
-    | :req_nonce
-    | :res_nonce
-    | :message
-    | :req_messages
-    | :res_messages
-    | :req_uuid
-    | :res_uuid
-    | :req_id
-    | :res_id
-    | :req_pub_key
-    | :res_pub_key
+          :ack
+          | :error
+          | :handshake
+          | :handshake_ack
+          | :req_login
+          | :res_login
+          | :req_signup
+          | :res_signup
+          | :req_nonce
+          | :res_nonce
+          | :message
+          | :req_messages
+          | :res_messages
+          | :req_uuid
+          | :res_uuid
+          | :req_id
+          | :res_id
+          | :req_pub_key
+          | :res_pub_key
 
- _ @type packet_response_type ::
-    :plain
-    | :no_auth
-    | :with_auth
+  _(
+    @type packet_response_type ::
+            :plain
+            | :no_auth
+            | :with_auth
+  )
 
   @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
