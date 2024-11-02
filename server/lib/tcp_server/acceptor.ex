@@ -14,7 +14,7 @@ defmodule TCPServer.Acceptor do
   def accept(port) do
     case :gen_tcp.listen(port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
-        Logger.info("Accepting connections on port #{port}")
+        Logger.notice("Accepting connections on port #{port}")
         loop_acceptor(socket)
 
       {:error, reason} ->
@@ -32,11 +32,12 @@ defmodule TCPServer.Acceptor do
     # conn_uuid should be gotten from database
     conn_uuid = Utils.uuid()
 
-    Logger.info("New connection -> uid : #{inspect(conn_uuid)}")
+    Logger.notice("New connection -> uid : #{inspect(conn_uuid)}")
 
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
-        DataHandler.send_data(client, :handshake, conn_uuid, conn_uuid)
+        message_id = :crypto.hash(:md4, <<0>>)
+        DataHandler.send_data(client, :handshake, conn_uuid, message_id, conn_uuid)
 
         loop_serve(client, conn_uuid)
       end)
@@ -60,7 +61,7 @@ defmodule TCPServer.Acceptor do
         DataHandler.handle_data(data, conn_uuid)
 
       {:tcp_closed, ^socket} ->
-        Logger.info("Client connection closed")
+        Logger.notice("Client connection closed")
         GenServer.cast(TCPServer, {:remove_connection, conn_uuid})
 
         exit(:normal)
@@ -71,8 +72,8 @@ defmodule TCPServer.Acceptor do
 
         exit(:error)
 
-      {:send_data, type, message} ->
-        DataHandler.send_data(socket, type, conn_uuid, message)
+      {:send_data, type, message_id, message} ->
+        DataHandler.send_data(socket, type, conn_uuid, message_id, message)
     after
       5000 ->
         nil

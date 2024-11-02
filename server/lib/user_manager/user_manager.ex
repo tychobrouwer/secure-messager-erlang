@@ -1,6 +1,9 @@
 defmodule UserManager do
   use GenServer
 
+  defguardp verify_bin(binary, length)
+            when is_binary(binary) and byte_size(binary) == length
+
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -35,7 +38,8 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_signup, user_uuid, user_id, hashed_password}, _from, state) do
+  def handle_call({:req_signup, user_uuid, user_id, hashed_password}, _from, state)
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) do
     if !exists_user_id(state, user_id) do
       user = %{
         id: user_id,
@@ -56,7 +60,7 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_nonce, user_id}, _from, state) do
+  def handle_call({:req_nonce, user_id}, _from, state) when verify_bin(user_id, 16) do
     user = Map.get(state, user_id)
 
     nonce = Bcrypt.Base.gen_salt(12, false)
@@ -68,7 +72,8 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:verify_token, user_uuid, user_id, token}, _from, state) do
+  def handle_call({:verify_token, user_uuid, user_id, token}, _from, state)
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) and verify_bin(token, 29) do
     user = Map.get(state, user_id)
 
     result = user.token == token && user.uuid == user_uuid

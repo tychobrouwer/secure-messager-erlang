@@ -11,39 +11,51 @@ defmodule Client.Contact do
 
   @spec add_contact(binary | nil, binary | nil) :: binary
   def add_contact(contact_uuid, contact_id) do
-    {contact_id, contact_uuid} =
-      case {contact_id, contact_uuid} do
+    Logger.notice("Adding contact with uuid: #{contact_uuid} and id: #{contact_id}")
+
+    {contact_uuid, contact_id} =
+      case {contact_uuid, contact_id} do
         {nil, nil} ->
           Logger.error("No contact id or uuid provided")
           exit("Dont call add contact if id and uuid are nil")
 
-        {nil, contact_uuid} ->
-          contact_id = TCPServer.async_do(fn -> get_id(contact_uuid) end)
+        {contact_uuid, nil} ->
+          message_id = GenServer.call(TCPServer, {:get_message_id})
 
-          {contact_id, contact_uuid}
+          contact_id =
+            TCPServer.async_receive(fn -> get_id(contact_uuid, message_id) end, message_id)
 
-        {contact_id, nil} ->
+          {contact_uuid, contact_id}
+
+        {nil, contact_id} ->
           contact_id_hash = :crypto.hash(:md4, contact_id)
-          contact_uuid = TCPServer.async_do(fn -> get_uuid(contact_id_hash) end)
+          message_id = GenServer.call(TCPServer, {:get_message_id})
 
-          {contact_id, contact_uuid}
+          contact_uuid =
+            TCPServer.async_receive(fn -> get_uuid(contact_id_hash, message_id) end, message_id)
 
-        {contact_id, contact_uuid} ->
-          {contact_id, contact_uuid}
+          {contact_uuid, contact_id}
+
+        {contact_uuid, contact_id} ->
+          {contact_uuid, contact_id}
       end
 
     if GenServer.call(ContactManager, {:get_contact, contact_uuid}) == nil do
-      contact_pub_key = TCPServer.async_do(fn -> get_pub_key(contact_uuid) end)
+      message_id = GenServer.call(TCPServer, {:get_message_id})
+
+      contact_pub_key =
+        TCPServer.async_receive(fn -> get_pub_key(contact_uuid, message_id) end, message_id)
 
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
 
+    Logger.notice("Contact added with uuid: #{contact_uuid} and id: #{contact_id}")
+
     contact_uuid
   end
 
-  @spec get_uuid(binary) :: binary
-  defp get_uuid(contact_id_hash) do
-    GenServer.cast(TCPServer, {:send_data, :req_uuid, contact_id_hash, :with_auth})
+  defp get_uuid(contact_id_hash, message_id) do
+    GenServer.cast(TCPServer, {:send_data, :req_uuid, message_id, contact_id_hash, :with_auth})
 
     receive do
       {:req_uuid_response, response} ->
@@ -55,9 +67,8 @@ defmodule Client.Contact do
     end
   end
 
-  @spec get_id(binary) :: binary
-  defp get_id(contact_uuid) do
-    GenServer.cast(TCPServer, {:send_data, :req_id, contact_uuid, :with_auth})
+  defp get_id(contact_uuid, message_id) do
+    GenServer.cast(TCPServer, {:send_data, :req_id, message_id, contact_uuid, :with_auth})
 
     receive do
       {:req_id_response, response} ->
@@ -69,9 +80,8 @@ defmodule Client.Contact do
     end
   end
 
-  @spec get_pub_key(binary) :: binary
-  defp get_pub_key(contact_uuid) do
-    GenServer.cast(TCPServer, {:send_data, :req_pub_key, contact_uuid, :with_auth})
+  defp get_pub_key(contact_uuid, message_id) do
+    GenServer.cast(TCPServer, {:send_data, :req_pub_key, message_id, contact_uuid, :with_auth})
 
     receive do
       {:req_pub_key_response, response} ->

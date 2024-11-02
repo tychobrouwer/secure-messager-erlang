@@ -4,7 +4,7 @@ defmodule TCPServer do
   require Logger
 
   defguardp verify_bin(binary, length)
-            when is_binary(binary) and byte_size(binary) == length
+            when binary != nil and is_binary(binary) and byte_size(binary) == length
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -18,7 +18,7 @@ defmodule TCPServer do
   @impl true
   def handle_cast({:add_connection, conn_uuid, pid}, state)
       when verify_bin(conn_uuid, 20) and is_pid(pid) do
-    new_state = Map.put(state, conn_uuid, %{pid: pid, client_id: nil})
+    new_state = Map.put(state, conn_uuid, %{pid: pid, user_id: nil})
 
     {:noreply, new_state}
   end
@@ -76,11 +76,11 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:send_data, type, conn_uuid, message}, _from, state)
+  def handle_call({:send_data, type, conn_uuid, message_id, message}, _from, state)
       when verify_bin(conn_uuid, 20) do
     case Map.get(state, conn_uuid) do
       %{pid: pid} ->
-        send(pid, {:send_data, type, message})
+        send(pid, {:send_data, type, message_id, message})
         {:reply, :ok, state}
 
       _ ->

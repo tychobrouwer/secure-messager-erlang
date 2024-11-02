@@ -20,12 +20,10 @@ defmodule TCPServer.Utils do
           | :req_pub_key
           | :res_pub_key
 
-  _(
-    @type packet_response_type ::
-            :plain
-            | :no_auth
-            | :with_auth
-  )
+  @type packet_response_type ::
+          :plain
+          | :no_auth
+          | :with_auth
 
   @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do

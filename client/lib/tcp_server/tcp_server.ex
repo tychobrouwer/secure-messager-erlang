@@ -35,17 +35,22 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:send_data, type, data, auth}, state) do
+  def handle_cast({:send_data, type, message_id, data, auth}, state) do
     pid = Map.get(state, "tcp_pid")
 
-    send(pid, {:send_data, type, data, auth})
+    send(pid, {:send_data, type, message_id, data, auth})
     {:noreply, state}
   end
 
   @impl true
-  @spec handle_cast({:set_receive_pid, pid}, any) :: {:noreply, map}
-  def handle_cast({:set_receive_pid, pid}, state) when is_pid(pid) do
-    new_state = Map.put(state, "receive_pid", pid)
+  def handle_cast({:set_receive_pid, message_id, pid}, state) when is_pid(pid) do
+    new_state = Map.put(state, message_id, pid)
+    {:noreply, new_state}
+  end
+
+  @impl true
+  def handle_cast({:remove_receive_pid, message_id}, state) do
+    new_state = Map.delete(state, message_id)
     {:noreply, new_state}
   end
 
@@ -70,6 +75,18 @@ defmodule TCPServer do
   end
 
   @impl true
+  def handle_call({:get_message_id}, _from, state) do
+    auth_id = Map.get(state, :auth_id)
+    perf_counter = :os.perf_counter()
+
+    if auth_id == nil do
+      {:reply, :crypto.hash(:md4, <<perf_counter::64>>), state}
+    else
+      {:reply, :crypto.hash(:md4, <<perf_counter::64, auth_id::binary>>), state}
+    end
+  end
+
+  @impl true
   def handle_call({:get_uuid}, _from, state) do
     {:reply, Map.get(state, "uuid"), state}
   end
@@ -80,20 +97,22 @@ defmodule TCPServer do
   end
 
   @impl true
-  @spec handle_call({:get_receive_pid}, any, map) :: {:reply, pid, map}
-  def handle_call({:get_receive_pid}, _from, state) do
-    {:reply, Map.get(state, "receive_pid"), state}
+  def handle_call({:get_receive_pid, message_id}, _from, state) do
+    {:reply, Map.get(state, message_id), state}
   end
 
-  @spec async_do(fun) :: any
-  def async_do(fun) do
+  def async_receive(fun, message_id) do
     task =
       Task.async(fn ->
-        GenServer.cast(TCPServer, {:set_receive_pid, self()})
+        GenServer.cast(TCPServer, {:set_receive_pid, message_id, self()})
 
         fun.()
       end)
 
-    Task.await(task)
+    result = Task.await(task)
+
+    GenServer.cast(TCPServer, {:remove_receive_pid, message_id})
+
+    result
   end
 end

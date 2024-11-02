@@ -1,4 +1,5 @@
 defmodule TCPServer.DataHandler do
+  alias ElixirSense.Log
   require Logger
 
   @type packet_version :: 1
@@ -12,78 +13,79 @@ defmodule TCPServer.DataHandler do
   def handle_data(data, _conn_uuid) when not is_binary(data) or byte_size(data) < 22,
     do: {:error, :invalid_packet_data}
 
-  def handle_data(packet_data) do
+  def handle_data(packet) do
     %{
       version: _version,
       type_bin: type_bin,
       uuid: _uuid,
-      data: data
-    } = parse_packet(packet_data)
+      message_id: message_id,
+      data: packet_data
+    } = parse_packet(packet)
 
     type = TCPServer.Utils.packet_bin_to_atom(type_bin)
 
-    Logger.info("Received data -> #{type} : #{inspect(data)}")
+    Logger.info("Received data -> #{type} : #{inspect(packet)}")
 
     case type do
       :ack ->
         nil
 
       :error ->
-        nil
+        Logger.error("Received error -> #{inspect(packet_data)}")
 
       :handshake ->
-        GenServer.cast(TCPServer, {:set_uuid, data})
+        GenServer.cast(TCPServer, {:set_uuid, packet_data})
 
         case GenServer.call(ContactManager, {:get_keypair}) do
           nil ->
             nil
 
-          own_key_pair ->
+          own_keypair ->
             GenServer.cast(
               TCPServer,
-              {:send_data, :handshake_ack, own_keypair.public, :no_auth}
+              {:send_data, :handshake_ack, message_id, own_keypair.public, :no_auth}
             )
         end
 
       :res_login ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_login_response, data})
+          pid -> send(pid, {:req_login_response, packet_data})
         end
 
       :res_signup ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_signup_response, data})
+          pid -> send(pid, {:req_signup_response, packet_data})
         end
 
       :res_nonce ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_nonce_response, data})
+          pid -> send(pid, {:req_nonce_response, packet_data})
         end
 
       :res_messages ->
         Task.async(fn ->
-          Client.Message.receive(data)
+          Client.Message.receive(packet_data)
         end)
 
       :res_uuid ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_uuid_response, data})
+          pid -> send(pid, {:req_uuid_response, packet_data})
         end
 
       :res_id ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_id_response, data})
+          pid -> send(pid, {:req_id_response, packet_data})
         end
 
       :res_pub_key ->
-        case GenServer.call(TCPServer, {:get_receive_pid}) do
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_pub_key_response, data})
+          pid -> send(pid, {:req_pub_key_response, packet_data})
         end
 
       _ ->
@@ -91,11 +93,13 @@ defmodule TCPServer.DataHandler do
     end
   end
 
-  defp parse_packet(packet_data) do
-    <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20), data::binary>> =
-      packet_data
+  defp parse_packet(packet) do
+    <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20),
+      message_id::binary-size(16),
+      data::binary>> =
+      packet
 
-    %{version: version, type_bin: type_bin, uuid: uuid, data: data}
+    %{version: version, type_bin: type_bin, uuid: uuid, message_id: message_id, data: data}
   end
 
   @doc """
@@ -104,16 +108,18 @@ defmodule TCPServer.DataHandler do
   If the data fails to send, retry up to 10 times before exiting.
   """
 
-  def send_data(socket, type, message, retry_nr \\ 0) do
+  def send_data(socket, type, message_id, message, retry_nr \\ 0) do
     type_int = TCPServer.Utils.packet_to_int(type)
 
     result =
-      create_packet(1, type_int, message)
+      create_packet(1, type_int, message_id, message)
       |> send_packet(socket)
 
     case result do
       {:ok, packet} ->
         Logger.info("Sent data -> #{type} : #{inspect(packet)}")
+
+        message_id
 
       {:error, reason} ->
         Logger.error("Failed to send data -> #{type} : #{reason}")
@@ -121,7 +127,7 @@ defmodule TCPServer.DataHandler do
         Process.sleep(500)
 
         if retry_nr < 10 do
-          send_data(message, type, socket, retry_nr + 1)
+          send_data(socket, type, message_id, message, retry_nr + 1)
         else
           Logger.error("Failed to send data -> #{type} : #{reason}")
 
@@ -144,20 +150,23 @@ defmodule TCPServer.DataHandler do
     end
   end
 
-  defp create_packet(version, _type_int, _data) when version != 1,
+  defp create_packet(version, _type_int, _message_id, _data) when version != 1,
     do: {:error, :invalid_packet_version}
 
-  defp create_packet(_version, type_int, _data) when not is_integer(type_int),
+  defp create_packet(_version, type_int, _message_id, _data) when not is_integer(type_int),
     do: {:error, :invalid_packet_type}
 
-  defp create_packet(_version, _type_int, data) when not is_binary(data),
+  defp create_packet(_version, _type_int, message_id, _data) when not is_binary(message_id),
+    do: {:error, :invalid_packet_message_id}
+
+  defp create_packet(_version, _type_int, _message_id, data) when not is_binary(data),
     do: {:error, :invalid_packet_data}
 
-  defp create_packet(version, type_int, data) do
+  defp create_packet(version, type_int, message_id, data) do
     uuid = GenServer.call(TCPServer, {:get_uuid})
 
     if is_binary(uuid) do
-      <<version::8, type_int::8>> <> uuid <> <<data::binary>>
+      <<version::8, type_int::8>> <> uuid <> message_id <> <<data::binary>>
     else
       {:error, :invalid_uuid}
     end

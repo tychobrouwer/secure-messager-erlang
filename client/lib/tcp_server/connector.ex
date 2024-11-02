@@ -9,7 +9,7 @@ defmodule TCPServer.Connector do
   def connect(address, port) do
     case :gen_tcp.connect(address, port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
-        Logger.info("Connection server -> #{address}:#{port}")
+        Logger.notice("Connection server -> #{address}:#{port}")
 
         pid = self()
         GenServer.cast(TCPServer, {:add_connection, pid})
@@ -45,16 +45,16 @@ defmodule TCPServer.Connector do
 
         exit(:error)
 
-      {:send_data, type, message, :with_auth} ->
+      {:send_data, type, message_id, message, :with_auth} ->
         token = GenServer.call(TCPServer, {:get_auth_token})
         id = GenServer.call(TCPServer, {:get_auth_id})
 
         message = id <> token <> message
 
-        DataHandler.send_data(socket, type, message)
+        DataHandler.send_data(socket, type, message_id, message)
 
-      {:send_data, type, message, :no_auth} ->
-        DataHandler.send_data(socket, type, message)
+      {:send_data, type, message_id, message, :no_auth} ->
+        DataHandler.send_data(socket, type, message_id, message)
     after
       1000 ->
         nil

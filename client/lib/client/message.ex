@@ -11,6 +11,8 @@ defmodule Client.Message do
 
   @spec send(binary, binary) :: :ok
   def send(message, recipient_uuid) do
+    Logger.notice("Sending message to #{recipient_uuid}")
+
     contact = GenServer.call(ContactManager, {:cycle_contact_sending, recipient_uuid})
 
     {encrypted_message, message_tag, mac_hash} =
@@ -26,11 +28,31 @@ defmodule Client.Message do
       message: encrypted_message
     }
 
-    GenServer.cast(TCPServer, {:send_data, :message, :erlang.term_to_binary(data), :with_auth})
+    message_id = GenServer.call(TCPServer, {:get_message_id})
+
+    result =
+      GenServer.cast(
+        TCPServer,
+        {:send_data, :message, message_id, :erlang.term_to_binary(data), :with_auth}
+      )
+
+    Logger.notice("Message sent to #{recipient_uuid}")
+
+    result
   end
 
   @spec receive(binary) :: :ok
   def receive(message) do
+    message_data = %{
+      sender_uuid: nil,
+      recipient_uuid: nil,
+      message_uuid: nil,
+      tag: nil,
+      hash: nil,
+      public_key: nil,
+      message: nil
+    }
+
     message_data = :erlang.binary_to_term(message, [:safe])
 
     contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_uuid})
@@ -53,6 +75,6 @@ defmodule Client.Message do
         contact.m_ratchet.child_key
       )
 
-    Logger.info("Decrypted message -> #{valid} : #{decrypted_message}")
+    Logger.notice("Decrypted message -> #{valid} : #{decrypted_message}")
   end
 end
