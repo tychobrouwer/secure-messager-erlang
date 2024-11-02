@@ -1,5 +1,4 @@
 defmodule TCPServer.DataHandler do
-  alias ElixirSense.Log
   require Logger
 
   @type packet_version :: 1

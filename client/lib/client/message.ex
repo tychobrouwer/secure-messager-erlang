@@ -11,7 +11,7 @@ defmodule Client.Message do
 
   @spec send(binary, binary) :: :ok
   def send(message, recipient_uuid) do
-    Logger.notice("Sending message to #{recipient_uuid}")
+    Logger.notice("Sending message to #{inspect(recipient_uuid)}")
 
     contact = GenServer.call(ContactManager, {:cycle_contact_sending, recipient_uuid})
 
@@ -36,14 +36,14 @@ defmodule Client.Message do
         {:send_data, :message, message_id, :erlang.term_to_binary(data), :with_auth}
       )
 
-    Logger.notice("Message sent to #{recipient_uuid}")
+    Logger.notice("Message sent to #{inspect(recipient_uuid)}")
 
     result
   end
 
   @spec receive(binary) :: :ok
   def receive(message) do
-    message_data = %{
+    _message_data = %{
       sender_uuid: nil,
       recipient_uuid: nil,
       message_uuid: nil,

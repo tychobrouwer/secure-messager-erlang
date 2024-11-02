@@ -75,23 +75,12 @@ defmodule TCPServer.DataHandler do
         end
 
       {:message, {user_id, message_bin}} ->
-        message_data = %{
-          sender_uuid: <<>>,
-          recipient_uuid: <<>>,
-          message_uuid: <<>>,
-          tag: <<>>,
-          hash: <<>>,
-          public_key: <<>>,
-          message: <<>>
-        }
-
         message_data =
           try do
-            message_data = :erlang.binary_to_term(message_bin, [:safe])
+            :erlang.binary_to_term(message_bin, [:safe])
           rescue
             _ ->
-              message_data = :erlang.binary_to_term(message_bin)
-              Logger.error("Failed to parse message -> #{inspect(message_data)}")
+              Logger.error("Failed to parse message")
 
               exit(:failed_to_parse_message)
           end

@@ -3,9 +3,9 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 10
-PORT = 4011
-TEST_MESSAGE = "Hello!"
+NR_CLIENTS = 25
+PORT = 4040
+TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
 errors = 0
 server = None
@@ -102,10 +102,9 @@ class Client:
         self.user_id = f"user{id}"
         user_password = f"password{id}"
 
-        time.sleep(1)
-
+    def signup(self):
         # token = Client.Account.signup(user_id, user_password)
-        self.process.send_input(f"token = Client.Account.signup(\"{self.user_id}\", \"{user_password}\")")
+        self.process.send_input(f"token = Client.Account.signup(\"{self.user_id}\", \"password\")")
 
     def add_contact(self, user_id):
         if user_id == self.user_id:
@@ -131,14 +130,21 @@ def create_server_and_clients():
     server = ElixirProcess(" Server ", f"cd ./server && PORT={PORT} iex -S mix run --no-halt")
     time.sleep(1)
 
-    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding clients...")
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Starting clients...")
 
     for i in range(NR_CLIENTS):
         clients[i] = Client(i)
+        time.sleep(0.01)
 
-    time.sleep(1)
+    time.sleep(10)
 
-    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Signing up...")
+
+    for i in range(NR_CLIENTS):
+        clients[i].signup()
+        time.sleep(0.01)
+
+    time.sleep(10)
 
 def destroy_server_and_clients():
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Stopping...")
@@ -150,11 +156,15 @@ def destroy_server_and_clients():
 
     server.stop()
 
+    time.sleep(1)
+
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Done!")
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Errors: {errors}")
 
 def run_elixir_test_1():
     create_server_and_clients()
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
 
     for i in range(NR_CLIENTS):
         for j in range(NR_CLIENTS):
@@ -176,6 +186,8 @@ def run_elixir_test_1():
 
 def run_elixir_test_2():
     create_server_and_clients()
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
 
     i = 0
     for j in range(NR_CLIENTS):
