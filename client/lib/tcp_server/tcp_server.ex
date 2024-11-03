@@ -1,11 +1,10 @@
 defmodule TCPServer do
   use GenServer
 
-  defmacro verify_bin(binary, length) do
-    quote do
-      is_binary(unquote(binary)) and byte_size(unquote(binary)) == unquote(length)
-    end
-  end
+  alias TCPServer.Utils, as: Utils
+
+  defguardp verify_bin(binary, length)
+            when binary != nil and is_binary(binary) and byte_size(binary) == length
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -35,8 +34,9 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:send_data, type, message_id, data, auth}, state) do
+  def handle_cast({:send_data, type, message_id, data}, state) do
     pid = Map.get(state, "tcp_pid")
+    auth = Utils.get_packet_response_type(type)
 
     send(pid, {:send_data, type, message_id, data, auth})
     {:noreply, state}
@@ -101,12 +101,23 @@ defmodule TCPServer do
     {:reply, Map.get(state, message_id), state}
   end
 
-  def async_receive(fun, message_id) do
+  def get_async_server_value(req_type, message_id, data) do
     task =
       Task.async(fn ->
         GenServer.cast(TCPServer, {:set_receive_pid, message_id, self()})
+        GenServer.cast(TCPServer, {:send_data, req_type, message_id, data})
 
-        fun.()
+        receive do
+          {:req_response, response} ->
+            response
+
+          {:req_error_response, reason} ->
+            Logger.error("Error getting #{req_type} value: #{reason}")
+        after
+          5000 ->
+            Logger.error("Timeout waiting for #{req_type} value")
+            exit(:timeout)
+        end
       end)
 
     result = Task.await(task)

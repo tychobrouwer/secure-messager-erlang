@@ -34,7 +34,7 @@ defmodule TCPServer.DataHandler do
 
     case {type, packet_data} do
       {_type, {:error, reason}} ->
-        Logger.warning(inspect(reason))
+        Logger.error(inspect(reason))
 
         GenServer.call(TCPServer, {:send_data, :error, uuid, message_id, reason})
 
@@ -81,6 +81,11 @@ defmodule TCPServer.DataHandler do
           rescue
             _ ->
               Logger.error("Failed to parse message")
+
+              GenServer.call(
+                TCPServer,
+                {:send_data, :error, uuid, message_id, :failed_to_parse_message}
+              )
 
               exit(:failed_to_parse_message)
           end
@@ -144,6 +149,9 @@ defmodule TCPServer.DataHandler do
       {:req_pub_key, {_user_id, user_uuid}} ->
         case GenServer.call(TCPServer, {:get_user_pub_key, user_uuid}) do
           nil ->
+            Logger.error("failed user UUID: #{inspect(user_uuid)}")
+            # Logger.error("User ID: #{_user_id}")
+
             GenServer.call(
               TCPServer,
               {:send_data, :error, uuid, message_id, :failed_to_find_public_key}
@@ -257,13 +265,19 @@ defmodule TCPServer.DataHandler do
        when not is_binary(message_id),
        do: {:error, :invalid_packet_message_id}
 
-  defp create_packet(version, type_int, uuid, message_id, data) when not is_binary(data) do
-    data_bin = :erlang.term_to_binary(data)
+  defp create_packet(version, type_int, uuid, message_id, data) when is_atom(data) do
+    data_bin = :erlang.atom_to_binary(data)
 
     <<version::8, type_int::8>> <> uuid <> message_id <> <<data_bin::binary>>
   end
 
-  defp create_packet(version, type_int, uuid, message_id, data) do
+  defp create_packet(version, type_int, uuid, message_id, data) when is_binary(data) do
     <<version::8, type_int::8>> <> uuid <> message_id <> <<data::binary>>
+  end
+
+  defp create_packet(version, type_int, uuid, message_id, data) do
+    data_bin = :erlang.term_to_binary(data)
+
+    <<version::8, type_int::8>> <> uuid <> message_id <> <<data_bin::binary>>
   end
 end

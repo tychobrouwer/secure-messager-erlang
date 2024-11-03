@@ -57,6 +57,8 @@ defmodule TCPServer.Connector do
         DataHandler.send_data(socket, type, message_id, message)
     after
       1000 ->
+        Logger.info("Connection idle")
+
         nil
     end
 

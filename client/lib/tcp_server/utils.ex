@@ -25,6 +25,19 @@ defmodule TCPServer.Utils do
           | :no_auth
           | :with_auth
 
+  def get_packet_response_type(packet_type) do
+    case packet_type do
+      type when type == :ack or type == :error or type == :handshake_ack or type == :req_nonce ->
+        :plain
+
+      type when type == :req_login or type == :req_signup ->
+        :no_auth
+
+      _ ->
+        :with_auth
+    end
+  end
+
   @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
     case type do

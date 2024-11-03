@@ -31,10 +31,7 @@ defmodule Client.Message do
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
     result =
-      GenServer.cast(
-        TCPServer,
-        {:send_data, :message, message_id, :erlang.term_to_binary(data), :with_auth}
-      )
+      GenServer.cast(TCPServer, {:send_data, :message, message_id, :erlang.term_to_binary(data)})
 
     Logger.notice("Message sent to #{inspect(recipient_uuid)}")
 

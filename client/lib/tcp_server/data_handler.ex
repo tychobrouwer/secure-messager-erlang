@@ -30,7 +30,12 @@ defmodule TCPServer.DataHandler do
         nil
 
       :error ->
-        Logger.error("Received error -> #{inspect(packet_data)}")
+        Logger.error("Received error -> #{packet_data}")
+
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
+          nil -> nil
+          pid -> send(pid, {:req_error_response, packet_data})
+        end
 
       :handshake ->
         GenServer.cast(TCPServer, {:set_uuid, packet_data})
@@ -42,26 +47,26 @@ defmodule TCPServer.DataHandler do
           own_keypair ->
             GenServer.cast(
               TCPServer,
-              {:send_data, :handshake_ack, message_id, own_keypair.public, :no_auth}
+              {:send_data, :handshake_ack, message_id, own_keypair.public}
             )
         end
 
       :res_login ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_login_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_signup ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_signup_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_nonce ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_nonce_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_messages ->
@@ -72,19 +77,19 @@ defmodule TCPServer.DataHandler do
       :res_uuid ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_uuid_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_id ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_id_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_pub_key ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
-          pid -> send(pid, {:req_pub_key_response, packet_data})
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       _ ->

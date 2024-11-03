@@ -3,8 +3,8 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 100
-PORT = 4002
+NR_CLIENTS = 25
+PORT = 4444
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
 errors = 0

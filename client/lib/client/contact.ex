@@ -23,7 +23,7 @@ defmodule Client.Contact do
           message_id = GenServer.call(TCPServer, {:get_message_id})
 
           contact_id =
-            TCPServer.async_receive(fn -> get_id(contact_uuid, message_id) end, message_id)
+            TCPServer.get_async_server_value(:req_id, message_id, contact_uuid)
 
           {contact_uuid, contact_id}
 
@@ -32,7 +32,7 @@ defmodule Client.Contact do
           message_id = GenServer.call(TCPServer, {:get_message_id})
 
           contact_uuid =
-            TCPServer.async_receive(fn -> get_uuid(contact_id_hash, message_id) end, message_id)
+            TCPServer.get_async_server_value(:req_uuid, message_id, contact_id_hash)
 
           {contact_uuid, contact_id}
 
@@ -44,7 +44,7 @@ defmodule Client.Contact do
       message_id = GenServer.call(TCPServer, {:get_message_id})
 
       contact_pub_key =
-        TCPServer.async_receive(fn -> get_pub_key(contact_uuid, message_id) end, message_id)
+        TCPServer.get_async_server_value(:req_pub_key, message_id, contact_uuid)
 
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
@@ -52,44 +52,5 @@ defmodule Client.Contact do
     Logger.notice("Contact added with id: #{inspect(contact_id)}")
 
     contact_uuid
-  end
-
-  defp get_uuid(contact_id_hash, message_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_uuid, message_id, contact_id_hash, :with_auth})
-
-    receive do
-      {:req_uuid_response, response} ->
-        response
-    after
-      5000 ->
-        Logger.warning("Timeout waiting for uuid")
-        exit(:timeout)
-    end
-  end
-
-  defp get_id(contact_uuid, message_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_id, message_id, contact_uuid, :with_auth})
-
-    receive do
-      {:req_id_response, response} ->
-        response
-    after
-      5000 ->
-        Logger.warning("Timeout waiting for id")
-        exit(:timeout)
-    end
-  end
-
-  defp get_pub_key(contact_uuid, message_id) do
-    GenServer.cast(TCPServer, {:send_data, :req_pub_key, message_id, contact_uuid, :with_auth})
-
-    receive do
-      {:req_pub_key_response, response} ->
-        response
-    after
-      5000 ->
-        Logger.warning("Timeout waiting for public key")
-        exit(:timeout)
-    end
   end
 end
