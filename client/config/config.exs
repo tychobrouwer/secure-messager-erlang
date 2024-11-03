@@ -1,5 +1,7 @@
 import Config
 
 config :logger, :default_formatter,
-  truncate: :infinity,
-  format: "\n[$time] $metadata[$level] $message\n"
+  format: "\n[$time] $metadata[$level] $message\n",
+  metadata: [:line, :file]
+
+config :logger, level: :notice, truncate: :infinity

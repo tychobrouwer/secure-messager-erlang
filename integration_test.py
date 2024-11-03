@@ -3,8 +3,8 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 25
-PORT = 4040
+NR_CLIENTS = 100
+PORT = 4002
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
 errors = 0
@@ -19,7 +19,7 @@ class bcolors:
     NOTICE =  '\033[95m' # Purple
     CLIENT =  '\033[96m' # Cyan
     TIME =    '\033[90m' # Grey
-    ENDC = '\033[0m'
+    ENDC =    '\033[0m'
 
 class ElixirProcess:
     def __init__(self, name, command):
@@ -45,7 +45,13 @@ class ElixirProcess:
             for line in iter(self.process.stdout.readline, ""):
                 line = line.strip()
 
-                if line == "":
+                if line == "" or "iex" in line or "Elixir" in line or "Erlang" in line:
+                    continue
+
+                line_split = line.split(" ")
+
+                if len(line_split) < 3:
+                    print(f"{color}[{self.name}]{bcolors.ENDC} {line}")
                     continue
 
                 if "Error" in line or "error" in line:
@@ -56,19 +62,17 @@ class ElixirProcess:
                 if "Server" in self.name:
                     color = bcolors.SERVER
 
-                if len(line.split(" ")) < 3 or "iex" in line or "Interactive Elixir" in line:
-                    print(f"{color}[{self.name}]{bcolors.ENDC} {line}")
-                    continue
 
-                time = line.split(" ")[0]
+                time = line_split[0]
 
                 if time.count(":") != 2:
                     print(f"{color}[{self.name}]{bcolors.ENDC} {line}")
                     continue
 
-                level = line.split(" ")[1]
-                line = " ".join(line.split(" ")[2:])
-                
+                level = line_split[3]
+                line = " ".join(line_split[4:])
+                metadata = " ".join(line_split[1:3])
+
                 level_color = bcolors.ERROR
                 if level == "[info]":
                     level_color = bcolors.OKGREEN
@@ -77,10 +81,10 @@ class ElixirProcess:
                 elif level == "[warning]":
                     level_color = bcolors.WARNING
 
-                print(f"{color}[{self.name}]{bcolors.ENDC} {bcolors.TIME}{time}{bcolors.ENDC} {level_color}{level}{bcolors.ENDC} {line}")
+                print(f"{color}[{self.name}]{bcolors.ENDC} {bcolors.TIME}{time}{bcolors.ENDC} {metadata} {level_color}{level}{bcolors.ENDC} {line}")
 
             self.process.stdout.close()
-
+    
     def send_input(self, input_data):
         """Send data to the Elixir process."""
         if self.process.stdin:
@@ -134,22 +138,20 @@ def create_server_and_clients():
 
     for i in range(NR_CLIENTS):
         clients[i] = Client(i)
-        time.sleep(0.01)
 
-    time.sleep(10)
+    input("")
 
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Signing up...")
 
     for i in range(NR_CLIENTS):
         clients[i].signup()
-        time.sleep(0.01)
 
-    time.sleep(10)
+    input("")
 
 def destroy_server_and_clients():
-    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Stopping...")
+    input("")
 
-    time.sleep(1)
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Stopping...")
 
     for i in range(NR_CLIENTS):
         clients[i].stop()
@@ -170,18 +172,16 @@ def run_elixir_test_1():
         for j in range(NR_CLIENTS):
             clients[i].add_contact(f"user{j}")
         
-    time.sleep(1)
+    input("")
 
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Sending messages...")
-
-    i = 0
 
     for i in range(NR_CLIENTS):
         for j in range(NR_CLIENTS):
             clients[i].send_message(f"user{j}")
         
-        time.sleep(1)
-    
+        time.sleep(0.5)
+        
     destroy_server_and_clients()
 
 def run_elixir_test_2():
@@ -193,11 +193,10 @@ def run_elixir_test_2():
     for j in range(NR_CLIENTS):
         clients[i].add_contact(f"user{j}")
     
-    time.sleep(1)
+    input("")
 
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Sending messages...")
 
-    i = 0
     for j in range(NR_CLIENTS):
         clients[i].send_message(f"user{j}")
 
@@ -205,5 +204,5 @@ def run_elixir_test_2():
 
 if __name__ == "__main__":
     run_elixir_test_1()
-    time.sleep(10)
+    input("")
     run_elixir_test_2()

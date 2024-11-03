@@ -11,7 +11,7 @@ defmodule Client.Contact do
 
   @spec add_contact(binary | nil, binary | nil) :: binary
   def add_contact(contact_uuid, contact_id) do
-    Logger.notice("Adding contact with uuid: #{inspect(contact_uuid)} and id: #{contact_id}")
+    Logger.notice("Adding contact with id: #{contact_id}")
 
     {contact_uuid, contact_id} =
       case {contact_uuid, contact_id} do
@@ -49,9 +49,7 @@ defmodule Client.Contact do
       GenServer.cast(ContactManager, {:add_contact, contact_uuid, contact_id, contact_pub_key})
     end
 
-    Logger.notice(
-      "Contact added with uuid: #{inspect(contact_uuid)} and id: #{inspect(contact_id)}"
-    )
+    Logger.notice("Contact added with id: #{inspect(contact_id)}")
 
     contact_uuid
   end
