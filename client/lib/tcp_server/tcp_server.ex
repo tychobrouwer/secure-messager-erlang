@@ -1,6 +1,7 @@
 defmodule TCPServer do
   use GenServer
 
+  require Logger
   alias TCPServer.Utils, as: Utils
 
   defguardp verify_bin(binary, length)
@@ -24,6 +25,7 @@ defmodule TCPServer do
   @impl true
   def handle_cast({:add_connection, pid}, state) when is_pid(pid) do
     new_state = Map.put(state, "tcp_pid", pid)
+
     {:noreply, new_state}
   end
 
@@ -34,7 +36,8 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:send_data, type, message_id, data}, state) do
+  def handle_cast({:send_data, type, message_id, data}, state)
+      when is_atom(type) and verify_bin(message_id, 20) and is_binary(data) do
     pid = Map.get(state, "tcp_pid")
     auth = Utils.get_packet_response_type(type)
 
@@ -43,13 +46,14 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:set_receive_pid, message_id, pid}, state) when is_pid(pid) do
+  def handle_cast({:set_receive_pid, message_id, pid}, state)
+      when verify_bin(message_id, 20) and is_pid(pid) do
     new_state = Map.put(state, message_id, pid)
     {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:remove_receive_pid, message_id}, state) do
+  def handle_cast({:remove_receive_pid, message_id}, state) when verify_bin(message_id, 20) do
     new_state = Map.delete(state, message_id)
     {:noreply, new_state}
   end
@@ -60,8 +64,15 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 16) do
+  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 20) do
     {:noreply, Map.put(state, :auth_id, id)}
+  end
+
+  @impl true
+  def handle_cast(request, _from, state) do
+    Logger.error("Unknown cast request tcp_server -> #{inspect(request)}")
+
+    {:noreply, state}
   end
 
   @impl true
@@ -80,9 +91,9 @@ defmodule TCPServer do
     perf_counter = :os.perf_counter()
 
     if auth_id == nil do
-      {:reply, :crypto.hash(:md4, <<perf_counter::64>>), state}
+      {:reply, :crypto.hash(:sha, <<perf_counter::64>>), state}
     else
-      {:reply, :crypto.hash(:md4, <<perf_counter::64, auth_id::binary>>), state}
+      {:reply, :crypto.hash(:sha, <<perf_counter::64, auth_id::binary>>), state}
     end
   end
 
@@ -97,11 +108,12 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_receive_pid, message_id}, _from, state) do
+  def handle_call({:get_receive_pid, message_id}, _from, state) when verify_bin(message_id, 20) do
     {:reply, Map.get(state, message_id), state}
   end
 
-  def get_async_server_value(req_type, message_id, data) do
+  def get_async_server_value(req_type, message_id, data)
+      when is_atom(req_type) and verify_bin(message_id, 20) and is_binary(data) do
     task =
       Task.async(fn ->
         GenServer.cast(TCPServer, {:set_receive_pid, message_id, self()})
@@ -125,5 +137,12 @@ defmodule TCPServer do
     GenServer.cast(TCPServer, {:remove_receive_pid, message_id})
 
     result
+  end
+
+  @impl true
+  def handle_call(request, _from, state) do
+    Logger.error("Unknown call request tcp_server -> #{inspect(request)}")
+
+    {:reply, nil, state}
   end
 end

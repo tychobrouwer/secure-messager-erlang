@@ -15,7 +15,6 @@ defmodule Crypt.Message do
       {encrypted_message, tag, hash}
   """
 
-  @spec encrypt(binary, binary) :: {binary, binary, binary}
   def encrypt(message, message_key) do
     message = pkcs7_pad(message, 16)
 
@@ -56,7 +55,6 @@ defmodule Crypt.Message do
         {decrypted_message, valid}
   """
 
-  @spec decrypt(binary, binary, binary, binary) :: {binary, boolean}
   def decrypt(encrypted_message, message_tag, hash, message_key) do
     salt_size = 80 * 8
     salt = <<0::size(salt_size)>>

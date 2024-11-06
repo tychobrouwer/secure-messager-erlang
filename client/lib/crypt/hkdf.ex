@@ -16,7 +16,6 @@ defmodule Crypt.Hkdf do
       key
   """
 
-  @spec derive(binary, integer, binary, binary) :: binary
   def derive(input, length, salt \\ "", info \\ "") do
     prk = extract(input, salt)
     okm = expand(prk, info, length)
@@ -24,14 +23,12 @@ defmodule Crypt.Hkdf do
     okm
   end
 
-  @spec extract(binary, binary) :: binary
   defp extract(input, salt) do
     prk = :crypto.mac(:hmac, :sha512, salt, input)
 
     prk
   end
 
-  @spec expand(binary, binary, integer) :: binary
   defp expand(prk, info, length) do
     hash_length = 64
 

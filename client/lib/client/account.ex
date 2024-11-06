@@ -6,7 +6,7 @@ defmodule Client.Account do
   require Logger
 
   def login(user_id, user_password) do
-    user_id_hash = :crypto.hash(:md4, user_id)
+    user_id_hash = :crypto.hash(:sha, user_id)
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
     nonce = TCPServer.get_async_server_value(:req_nonce, message_id, user_id_hash)
@@ -40,7 +40,7 @@ defmodule Client.Account do
 
     Logger.notice("Attempting signup with user id: #{user_id}")
 
-    user_id_hash = :crypto.hash(:md4, user_id)
+    user_id_hash = :crypto.hash(:sha, user_id)
     signup_data = user_id_hash <> hashed_password
 
     message_id = GenServer.call(TCPServer, {:get_message_id})

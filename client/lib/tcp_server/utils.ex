@@ -38,7 +38,6 @@ defmodule TCPServer.Utils do
     end
   end
 
-  @spec packet_to_int(packet_type) :: integer | nil
   def packet_to_int(type) do
     case type do
       :ack -> 0
@@ -64,7 +63,6 @@ defmodule TCPServer.Utils do
     end
   end
 
-  @spec packet_bin_to_atom(binary) :: packet_type | nil
   def packet_bin_to_atom(type) do
     case type do
       <<0>> -> :ack

@@ -14,7 +14,9 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_login, user_uuid, user_id, password_with_nonce}, _from, state) do
+  def handle_call({:req_login, user_uuid, user_id, password_with_nonce}, _from, state)
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 20) and
+             is_binary(password_with_nonce) do
     user = Map.get(state, user_id)
 
     result = verify_user_pass(user.password, user.nonce, password_with_nonce)
@@ -39,7 +41,7 @@ defmodule UserManager do
 
   @impl true
   def handle_call({:req_signup, user_uuid, user_id, hashed_password}, _from, state)
-      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) do
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 20) and is_binary(hashed_password) do
     if !exists_user_id(state, user_id) do
       user = %{
         id: user_id,
@@ -60,7 +62,7 @@ defmodule UserManager do
   end
 
   @impl true
-  def handle_call({:req_nonce, user_id}, _from, state) when verify_bin(user_id, 16) do
+  def handle_call({:req_nonce, user_id}, _from, state) when verify_bin(user_id, 20) do
     user = Map.get(state, user_id)
 
     nonce = Bcrypt.Base.gen_salt(12, false)
@@ -73,12 +75,19 @@ defmodule UserManager do
 
   @impl true
   def handle_call({:verify_token, user_uuid, user_id, token}, _from, state)
-      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) and verify_bin(token, 29) do
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 20) and verify_bin(token, 29) do
     user = Map.get(state, user_id)
 
     result = user.token == token && user.uuid == user_uuid
 
     {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call(request, _from, state) do
+    Logger.error("Unknown call request tcp_server -> #{inspect(request)}")
+
+    {:reply, nil, state}
   end
 
   defp exists_user_id(state, user_id) do

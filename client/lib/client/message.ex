@@ -9,7 +9,6 @@ defmodule Client.Message do
   @type keypair :: Crypt.Keys.keypair()
   @type contact :: ContactManager.contact()
 
-  @spec send(binary, binary) :: :ok
   def send(message, recipient_uuid) do
     Logger.notice("Sending message to #{inspect(recipient_uuid)}")
 
@@ -38,7 +37,6 @@ defmodule Client.Message do
     result
   end
 
-  @spec receive(binary) :: :ok
   def receive(message) do
     _message_data = %{
       sender_uuid: nil,

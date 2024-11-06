@@ -9,7 +9,6 @@ defmodule Client.Contact do
   @type keypair :: Crypt.Keys.keypair()
   @type contact :: ContactManager.contact()
 
-  @spec add_contact(binary | nil, binary | nil) :: binary
   def add_contact(contact_uuid, contact_id) do
     Logger.notice("Adding contact with id: #{contact_id}")
 
@@ -28,7 +27,7 @@ defmodule Client.Contact do
           {contact_uuid, contact_id}
 
         {nil, contact_id} ->
-          contact_id_hash = :crypto.hash(:md4, contact_id)
+          contact_id_hash = :crypto.hash(:sha, contact_id)
           message_id = GenServer.call(TCPServer, {:get_message_id})
 
           contact_uuid =

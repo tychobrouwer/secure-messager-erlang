@@ -149,9 +149,6 @@ defmodule TCPServer.DataHandler do
       {:req_pub_key, {_user_id, user_uuid}} ->
         case GenServer.call(TCPServer, {:get_user_pub_key, user_uuid}) do
           nil ->
-            Logger.error("failed user UUID: #{inspect(user_uuid)}")
-            # Logger.error("User ID: #{_user_id}")
-
             GenServer.call(
               TCPServer,
               {:send_data, :error, uuid, message_id, :failed_to_find_public_key}
@@ -171,7 +168,7 @@ defmodule TCPServer.DataHandler do
 
   defp parse_packet(packet_data) do
     <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20),
-      message_id::binary-size(16),
+      message_id::binary-size(20),
       data::binary>> =
       packet_data
 
@@ -181,23 +178,23 @@ defmodule TCPServer.DataHandler do
   defp parse_packet_data({:error, reason}, _uuid, _packet_response_type),
     do: {:error, reason}
 
-  defp parse_packet_data(packet_data, _uuid, :no_auth) when byte_size(packet_data) < 16,
+  defp parse_packet_data(packet_data, _uuid, :no_auth) when byte_size(packet_data) < 20,
     do: {:error, :invalid_packet_no_auth}
 
-  defp parse_packet_data(packet_data, _uuid, :with_auth) when byte_size(packet_data) < 16 + 29,
+  defp parse_packet_data(packet_data, _uuid, :with_auth) when byte_size(packet_data) < 20 + 29,
     do: {:error, :invalid_packet_with_auth}
 
   defp parse_packet_data(packet_data, _uuid, :plain),
     do: {nil, packet_data}
 
   defp parse_packet_data(packet_data, _uuid, :no_auth) do
-    <<user_id::binary-size(16), data::binary>> = packet_data
+    <<user_id::binary-size(20), data::binary>> = packet_data
 
     {user_id, data}
   end
 
   defp parse_packet_data(packet_data, uuid, :with_auth) do
-    <<user_id::binary-size(16), token::binary-size(29), data::binary>> = packet_data
+    <<user_id::binary-size(20), token::binary-size(29), data::binary>> = packet_data
 
     case GenServer.call(UserManager, {:verify_token, uuid, user_id, token}) do
       false -> {:error, :invalid_packet_auth_verify}

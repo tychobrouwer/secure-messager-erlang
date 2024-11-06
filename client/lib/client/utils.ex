@@ -3,7 +3,6 @@ defmodule Client.Utils do
   Utility functions for the client
   """
 
-  @spec uuid() :: binary
   def uuid() do
     perf_counter = :os.perf_counter()
     random = :rand.uniform(1_000_000)

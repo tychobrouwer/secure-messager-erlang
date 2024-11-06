@@ -60,7 +60,7 @@ defmodule TCPServerTest do
 
     assert client_1 == nil
 
-    user_id_hash = :crypto.hash(:md4, "user1")
+    user_id_hash = :crypto.hash(:sha, "user1")
 
     GenServer.cast(TCPServer, {:update_connection, conn_id, user_id_hash, nil})
 

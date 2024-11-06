@@ -3,6 +3,9 @@ defmodule ContactManager do
 
   require Logger
 
+  defguardp verify_bin(binary, length)
+            when binary != nil and is_binary(binary) and byte_size(binary) == length
+
   @type contact_state :: :receiving | :sending | nil
   @type ratchet :: Crypt.Ratchet.ratchet()
   @type keypair :: Crypt.Keys.keypair()
@@ -30,8 +33,9 @@ defmodule ContactManager do
   end
 
   @impl true
-  @spec handle_cast({:add_contact, binary, binary, binary}, any) :: {:noreply, map}
-  def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state) do
+  def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state)
+      when verify_bin(contact_uuid, 20) and is_binary(contact_id) and
+             verify_bin(contact_pub_key, 32) do
     if Map.get(state, contact_uuid) != nil do
       Logger.error("Contact already exists")
 
@@ -56,25 +60,29 @@ defmodule ContactManager do
   end
 
   @impl true
-  @spec handle_cast({:remove_contact, binary}, any) :: {:noreply, map}
-  def handle_cast({:remove_contact, contact_uuid}, state) do
+  def handle_cast({:remove_contact, contact_uuid}, state) when verify_bin(contact_uuid, 20) do
     new_state = Map.delete(state, contact_uuid)
 
     {:noreply, new_state}
   end
 
   @impl true
-  @spec handle_call({:get_contact, binary}, any, map) :: {:reply, contact, map}
-  def handle_call({:get_contact, contact_uuid}, _from, state) do
+  def handle_cast(request, _from, state) do
+    Logger.error("Unknown cast request contact_manager -> #{inspect(request)}")
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call({:get_contact, contact_uuid}, _from, state) when verify_bin(contact_uuid, 20) do
     contact = Map.get(state, contact_uuid)
 
     {:reply, contact, state}
   end
 
   @impl true
-  @spec handle_call({:cycle_contact_sending, binary}, any, map) ::
-          {:reply, contact, map}
-  def handle_call({:cycle_contact_sending, contact_uuid}, _from, state) do
+  def handle_call({:cycle_contact_sending, contact_uuid}, _from, state)
+      when verify_bin(contact_uuid, 20) do
     contact = Map.get(state, contact_uuid)
 
     keypair =
@@ -117,9 +125,8 @@ defmodule ContactManager do
   end
 
   @impl true
-  @spec handle_call({:cycle_contact_receiving, binary, binary}, any, map) ::
-          {:reply, contact, map}
-  def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state) do
+  def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state)
+      when verify_bin(contact_uuid, 20) and verify_bin(pub_key, 32) do
     contact = Map.get(state, contact_uuid)
 
     contact_state = contact.state || :sending
@@ -155,10 +162,16 @@ defmodule ContactManager do
   end
 
   @impl true
-  @spec handle_call({:get_keypair}, any, map) :: {:reply, keypair, map}
   def handle_call({:get_keypair}, _from, state) do
     keypair = Map.get(state, "keypair")
 
     {:reply, keypair, state}
+  end
+
+  @impl true
+  def handle_call(request, _from, state) do
+    Logger.error("Unknown call request contact_manager -> #{inspect(request)}")
+
+    {:reply, nil, state}
   end
 end

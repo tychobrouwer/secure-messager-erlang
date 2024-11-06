@@ -11,7 +11,6 @@ defmodule Crypt.Ratchet do
           child_key: binary | nil
         }
 
-  @spec rk_ratchet_init(keypair, binary) :: ratchet
   def rk_ratchet_init(keypair, foreign_public_key) do
     root_key = Crypt.Keys.generate_eddh_secret(keypair, foreign_public_key)
     %{root_key: root_key, child_key: nil}
@@ -30,7 +29,6 @@ defmodule Crypt.Ratchet do
       ratchet
   """
 
-  @spec rk_cycle(ratchet, keypair, binary) :: ratchet
   def rk_cycle(ratchet, keypair, foreign_public_key) do
     root_key = ratchet.root_key
 
@@ -53,7 +51,6 @@ defmodule Crypt.Ratchet do
       ratchet
   """
 
-  @spec ck_cycle(binary) :: {binary, binary}
   def ck_cycle(chain_key) do
     # Generate new message key and chain key
     {chain_key, message_key} = kdf_ck(chain_key)
@@ -61,7 +58,6 @@ defmodule Crypt.Ratchet do
     %{root_key: chain_key, child_key: message_key}
   end
 
-  @spec kdf_rk(binary, binary) :: {binary, binary}
   defp kdf_rk(root_key, dh_key) do
     key = Crypt.Hkdf.derive(dh_key, 64, root_key, "r")
 
@@ -71,7 +67,6 @@ defmodule Crypt.Ratchet do
     {root_key, chain_key}
   end
 
-  @spec kdf_ck(binary) :: {binary, binary}
   defp kdf_ck(chain_key) do
     chain_key = Crypt.Hkdf.derive(chain_key, 32, "m")
     message_key = Crypt.Hkdf.derive(chain_key, 32, "c")

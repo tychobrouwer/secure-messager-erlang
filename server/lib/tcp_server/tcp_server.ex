@@ -32,7 +32,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:update_connection, conn_uuid, user_id, user_pub_key}, state)
-      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 16) and
+      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 20) and
              verify_bin(user_pub_key, 32) do
     if Map.has_key?(state, conn_uuid) do
       new_state = put_in(state, [conn_uuid, :user_id], user_id)
@@ -46,7 +46,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:update_connection, conn_uuid, user_id, _user_pub_key}, state)
-      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 16) do
+      when verify_bin(conn_uuid, 20) and verify_bin(user_id, 20) do
     if Map.has_key?(state, conn_uuid) do
       new_state = put_in(state, [conn_uuid, :user_id], user_id)
 
@@ -70,7 +70,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast(request, state) do
-    Logger.error("Unknown cast request -> #{inspect(request)}")
+    Logger.error("Unknown cast request tcp_server -> #{inspect(request)}")
 
     {:noreply, state}
   end
@@ -89,7 +89,7 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_user_uuid, user_id}, _from, state) when verify_bin(user_id, 16) do
+  def handle_call({:get_user_uuid, user_id}, _from, state) when verify_bin(user_id, 20) do
     conn = Enum.find(state, fn {_key, conn} -> conn.user_id == user_id end)
 
     case conn do
@@ -126,7 +126,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_call({:verify_user_uuid_id, user_uuid, user_id}, _from, state)
-      when verify_bin(user_uuid, 20) and verify_bin(user_id, 16) do
+      when verify_bin(user_uuid, 20) and verify_bin(user_id, 20) do
     case Map.get(state, user_uuid) do
       %{user_id: user_id_stored} when user_id == user_id_stored ->
         {:reply, true, state}
@@ -143,7 +143,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_call(request, _from, state) do
-    Logger.error("Unknown call request -> #{inspect(request)}")
+    Logger.error("Unknown call request tcp_server -> #{inspect(request)}")
 
     {:reply, nil, state}
   end

@@ -10,7 +10,6 @@ defmodule TCPServer.Acceptor do
   Accept incoming connections on a given port.
   """
 
-  @spec accept(integer) :: :ok
   def accept(port) do
     case :gen_tcp.listen(port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
@@ -25,7 +24,6 @@ defmodule TCPServer.Acceptor do
     end
   end
 
-  @spec loop_acceptor(socket) :: :ok
   defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
 
@@ -36,7 +34,7 @@ defmodule TCPServer.Acceptor do
 
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
-        message_id = :crypto.hash(:md4, <<0>>)
+        message_id = :crypto.hash(:sha, <<0>>)
         DataHandler.send_data(client, :handshake, conn_uuid, message_id, conn_uuid)
 
         loop_serve(client, conn_uuid)
@@ -52,7 +50,6 @@ defmodule TCPServer.Acceptor do
     loop_acceptor(socket)
   end
 
-  @spec loop_serve(socket, binary) :: :ok
   defp loop_serve(socket, conn_uuid) do
     :inet.setopts(socket, [{:active, :once}])
 
@@ -74,6 +71,9 @@ defmodule TCPServer.Acceptor do
 
       {:send_data, type, message_id, message} ->
         DataHandler.send_data(socket, type, conn_uuid, message_id, message)
+
+      msg ->
+        Logger.info("Unhandled message -> #{inspect(msg)}")
     after
       5000 ->
         nil

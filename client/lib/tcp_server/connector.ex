@@ -5,7 +5,6 @@ defmodule TCPServer.Connector do
 
   @type socket :: :inet.socket()
 
-  @spec connect(charlist, integer) :: :ok
   def connect(address, port) do
     case :gen_tcp.connect(address, port, [:binary, packet: 4, active: false, reuseaddr: true]) do
       {:ok, socket} ->
@@ -25,7 +24,6 @@ defmodule TCPServer.Connector do
     end
   end
 
-  @spec loop_serve(socket) :: :ok
   defp loop_serve(socket) do
     :inet.setopts(socket, [{:active, :once}])
 
@@ -34,13 +32,13 @@ defmodule TCPServer.Connector do
         DataHandler.handle_data(data)
 
       {:tcp_closed, ^socket} ->
-        Logger.warning("Connection closed")
+        Logger.notice("Connection closed")
         GenServer.cast(TCPServer, {:remove_connection})
 
         exit(:disconnect)
 
       {:tcp_error, ^socket, reason} ->
-        Logger.warning("TCP Error: #{reason}")
+        Logger.error("TCP Error: #{reason}")
         GenServer.cast(TCPServer, {:remove_connection})
 
         exit(:error)
@@ -53,12 +51,13 @@ defmodule TCPServer.Connector do
 
         DataHandler.send_data(socket, type, message_id, message)
 
-      {:send_data, type, message_id, message, :no_auth} ->
+      {:send_data, type, message_id, message, _} ->
         DataHandler.send_data(socket, type, message_id, message)
+
+      msg ->
+        Logger.info("Unhandled message -> #{inspect(msg)}")
     after
       1000 ->
-        Logger.info("Connection idle")
-
         nil
     end
 

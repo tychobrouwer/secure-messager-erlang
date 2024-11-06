@@ -16,7 +16,6 @@ defmodule Crypt.Keys do
       keypair
   """
 
-  @spec generate_keypair() :: keypair
   def generate_keypair do
     {public_key, private_key} = :crypto.generate_key(:eddh, :x25519)
 
@@ -36,7 +35,6 @@ defmodule Crypt.Keys do
       shared_key
   """
 
-  @spec generate_eddh_secret(keypair, binary) :: binary
   def generate_eddh_secret(keypair, foreign_public_key) do
     shared_key = :crypto.compute_key(:eddh, foreign_public_key, keypair.private, :x25519)
 
