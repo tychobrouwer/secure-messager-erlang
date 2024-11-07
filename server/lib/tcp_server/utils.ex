@@ -3,7 +3,6 @@ defmodule TCPServer.Utils do
           :ack
           | :error
           | :handshake
-          | :handshake_ack
           | :req_login
           | :res_login
           | :req_signup
@@ -27,7 +26,7 @@ defmodule TCPServer.Utils do
 
   def get_packet_response_type(packet_type) do
     case packet_type do
-      type when type == :ack or type == :error or type == :handshake_ack or type == :req_nonce ->
+      type when type == :ack or type == :error or type == :req_nonce ->
         :plain
 
       type when type == :req_login or type == :req_signup ->
@@ -43,22 +42,21 @@ defmodule TCPServer.Utils do
       :ack -> 0
       :error -> 1
       :handshake -> 2
-      :handshake_ack -> 3
-      :req_login -> 4
-      :res_login -> 5
-      :req_signup -> 6
-      :res_signup -> 7
-      :req_nonce -> 8
-      :res_nonce -> 9
-      :message -> 10
-      :req_messages -> 11
-      :res_messages -> 12
-      :req_uuid -> 13
-      :res_uuid -> 14
-      :req_id -> 15
-      :res_id -> 16
-      :req_pub_key -> 17
-      :res_pub_key -> 18
+      :req_login -> 3
+      :res_login -> 4
+      :req_signup -> 5
+      :res_signup -> 6
+      :req_nonce -> 7
+      :res_nonce -> 8
+      :message -> 9
+      :req_messages -> 10
+      :res_messages -> 11
+      :req_uuid -> 12
+      :res_uuid -> 13
+      :req_id -> 14
+      :res_id -> 15
+      :req_pub_key -> 16
+      :res_pub_key -> 17
       _ -> nil
     end
   end
@@ -68,22 +66,21 @@ defmodule TCPServer.Utils do
       <<0>> -> :ack
       <<1>> -> :error
       <<2>> -> :handshake
-      <<3>> -> :handshake_ack
-      <<4>> -> :req_login
-      <<5>> -> :res_login
-      <<6>> -> :req_signup
-      <<7>> -> :res_signup
-      <<8>> -> :req_nonce
-      <<9>> -> :res_nonce
-      <<10>> -> :message
-      <<11>> -> :req_messages
-      <<12>> -> :res_messages
-      <<13>> -> :req_uuid
-      <<14>> -> :res_uuid
-      <<15>> -> :req_id
-      <<16>> -> :res_id
-      <<17>> -> :req_pub_key
-      <<18>> -> :res_pub_key
+      <<3>> -> :req_login
+      <<4>> -> :res_login
+      <<5>> -> :req_signup
+      <<6>> -> :res_signup
+      <<7>> -> :req_nonce
+      <<8>> -> :res_nonce
+      <<9>> -> :message
+      <<10>> -> :req_messages
+      <<11>> -> :res_messages
+      <<12>> -> :req_uuid
+      <<13>> -> :res_uuid
+      <<14>> -> :req_id
+      <<15>> -> :res_id
+      <<16>> -> :req_pub_key
+      <<17>> -> :res_pub_key
       _ -> nil
     end
   end

@@ -44,9 +44,6 @@ defmodule TCPServer.DataHandler do
       {:error, _packet_data} ->
         nil
 
-      {:handshake_ack, {_user_id, user_pub_key}} ->
-        GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil, user_pub_key})
-
       {:req_nonce, {_user_id, user_uuid}} ->
         nonce = GenServer.call(UserManager, {:req_nonce, user_uuid})
 
@@ -63,12 +60,14 @@ defmodule TCPServer.DataHandler do
           GenServer.call(TCPServer, {:send_data, :error, uuid, message_id, :invalid_login})
         end
 
-      {:req_signup, {user_id, hashed_password}} ->
+      {:req_signup, {user_id, signup_data}} ->
+        <<public_key::binary-size(32), hashed_password::binary>> = signup_data
+
         %{token: token, valid: valid} =
           GenServer.call(UserManager, {:req_signup, uuid, user_id, hashed_password})
 
         if valid do
-          GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, nil})
+          GenServer.cast(TCPServer, {:update_connection, conn_uuid, user_id, public_key})
           GenServer.call(TCPServer, {:send_data, :res_signup, uuid, message_id, token})
         else
           GenServer.call(TCPServer, {:send_data, :error, uuid, message_id, :invalid_signup})
@@ -97,6 +96,11 @@ defmodule TCPServer.DataHandler do
                 GenServer.call(
                   TCPServer,
                   {:send_data, :res_messages, recipient_uuid, message_id, message_bin}
+                )
+
+                GenServer.call(
+                  TCPServer,
+                  {:send_data, :message, uuid, message_id, <<1>>}
                 )
 
               false ->

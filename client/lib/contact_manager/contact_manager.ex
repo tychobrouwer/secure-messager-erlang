@@ -24,11 +24,6 @@ defmodule ContactManager do
 
   @impl true
   def init(state) do
-    keypair = Crypt.Keys.generate_keypair()
-
-    state = Map.put(state, "keypair", keypair)
-    state = Map.put(state, "pid", self())
-
     {:ok, state}
   end
 
@@ -159,6 +154,15 @@ defmodule ContactManager do
 
         {:reply, updated_contact, new_state}
     end
+  end
+
+  @impl true
+  def handle_call({:generate_keypair}, _from, state) do
+    keypair = Crypt.Keys.generate_keypair()
+
+    new_state = Map.put(state, "keypair", keypair)
+
+    {:reply, keypair.public, new_state}
   end
 
   @impl true

@@ -112,7 +112,7 @@ defmodule TCPServer do
     {:reply, Map.get(state, message_id), state}
   end
 
-  def get_async_server_value(req_type, message_id, data)
+  def send_receive_data(req_type, message_id, data)
       when is_atom(req_type) and verify_bin(message_id, 20) and is_binary(data) do
     task =
       Task.async(fn ->
@@ -125,10 +125,13 @@ defmodule TCPServer do
 
           {:req_error_response, reason} ->
             Logger.error("Error getting #{req_type} value: #{reason}")
+
+            {:error, reason}
         after
           5000 ->
             Logger.error("Timeout waiting for #{req_type} value")
-            exit(:timeout)
+
+            {:error, :timeout}
         end
       end)
 

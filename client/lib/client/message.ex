@@ -10,8 +10,6 @@ defmodule Client.Message do
   @type contact :: ContactManager.contact()
 
   def send(message, recipient_uuid) do
-    Logger.notice("Sending message to #{inspect(recipient_uuid)}")
-
     contact = GenServer.call(ContactManager, {:cycle_contact_sending, recipient_uuid})
 
     {encrypted_message, message_tag, mac_hash} =
@@ -29,25 +27,20 @@ defmodule Client.Message do
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
-    result =
-      GenServer.cast(TCPServer, {:send_data, :message, message_id, :erlang.term_to_binary(data)})
+    case TCPServer.send_receive_data(:message, message_id, :erlang.term_to_binary(data)) do
+      {:error, reason} ->
+        Logger.error("Failed to send message to #{inspect(recipient_uuid)}, reason: #{reason}")
 
-    Logger.notice("Message sent to #{inspect(recipient_uuid)}")
+        exit("Failed to send message")
 
-    result
+      result ->
+        Logger.notice("Message sent to #{inspect(recipient_uuid)}")
+
+        result
+    end
   end
 
   def receive(message) do
-    _message_data = %{
-      sender_uuid: nil,
-      recipient_uuid: nil,
-      message_uuid: nil,
-      tag: nil,
-      hash: nil,
-      public_key: nil,
-      message: nil
-    }
-
     message_data = :erlang.binary_to_term(message, [:safe])
 
     contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_uuid})

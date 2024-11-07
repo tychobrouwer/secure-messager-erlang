@@ -3,7 +3,7 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 5
+NR_CLIENTS = 10
 PORT = 4000
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
@@ -178,7 +178,7 @@ def run_elixir_test_1():
 
     for i in range(NR_CLIENTS):
         for j in range(NR_CLIENTS):
-            clients[i].send_message(f"user{j}")
+            clients[j].send_message(f"user{i}")
         
         time.sleep(0.5)
         
@@ -191,14 +191,14 @@ def run_elixir_test_2():
 
     i = 0
     for j in range(NR_CLIENTS):
-        clients[i].add_contact(f"user{j}")
+        clients[j].add_contact(f"user{i}")
     
     input("")
 
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Sending messages...")
 
     for j in range(NR_CLIENTS):
-        clients[i].send_message(f"user{j}")
+        clients[j].send_message(f"user{i}")
 
     destroy_server_and_clients()
 

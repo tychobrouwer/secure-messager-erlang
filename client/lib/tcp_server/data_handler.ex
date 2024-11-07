@@ -40,15 +40,10 @@ defmodule TCPServer.DataHandler do
       :handshake ->
         GenServer.cast(TCPServer, {:set_uuid, packet_data})
 
-        case GenServer.call(ContactManager, {:get_keypair}) do
-          nil ->
-            nil
-
-          own_keypair ->
-            GenServer.cast(
-              TCPServer,
-              {:send_data, :handshake_ack, message_id, own_keypair.public}
-            )
+      :message ->
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
+          nil -> nil
+          pid -> send(pid, {:req_response, packet_data})
         end
 
       :res_login ->
