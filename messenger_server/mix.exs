@@ -22,6 +22,7 @@ defmodule Server.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ecto, "~> 3.12.4"},
       {:ecto_sql, "~> 3.12.1"},
       {:postgrex, ">= 0.19.2"},
       {:bcrypt_elixir, ">= 3.2.0"}
