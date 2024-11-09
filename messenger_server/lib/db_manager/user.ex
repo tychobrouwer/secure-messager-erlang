@@ -2,7 +2,6 @@ defmodule DbManager.User do
   use Ecto.Schema
 
   schema("users") do
-    field(:uuid, :binary)
     field(:name, :binary)
     field(:public_key, :binary)
     field(:password, :binary)
@@ -16,10 +15,10 @@ defmodule DbManager.User do
   def changeset(user, params \\ %{}) do
     user
     |> Ecto.Changeset.cast(params,
-      [:uuid, :name, :public_key, :password, :nonce, :token]
+      [:name, :public_key, :password, :nonce, :token]
     )
     |> Ecto.Changeset.validate_required(
-      [:uuid, :name, :public_key, :password, :nonce, :token]
+      [:name, :public_key, :password, :nonce, :token]
     )
   end
 

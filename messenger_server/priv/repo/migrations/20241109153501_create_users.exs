@@ -3,7 +3,6 @@ defmodule DbManager.Repo.Migrations.CreateUsers do
 
   def change() do
     create(table(:users)) do
-      add(:uuid, :binary)
       add(:name, :binary)
       add(:public_key, :binary)
       add(:password, :binary)
