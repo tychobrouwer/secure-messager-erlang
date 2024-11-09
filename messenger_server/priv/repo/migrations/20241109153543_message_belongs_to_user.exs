@@ -8,3 +8,4 @@ defmodule DbManager.Repo.Migrations.MessageBelongsToUser do
     end
   end
 end
+
