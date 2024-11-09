@@ -164,8 +164,6 @@ def destroy_server_and_clients():
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Errors: {errors}")
 
 def run_elixir_test_1():
-    create_server_and_clients()
-
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
 
     for i in range(NR_CLIENTS):
@@ -181,12 +179,8 @@ def run_elixir_test_1():
             clients[j].send_message(f"user{i}")
         
         time.sleep(0.5)
-        
-    destroy_server_and_clients()
 
 def run_elixir_test_2():
-    create_server_and_clients()
-
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
 
     i = 0
@@ -200,9 +194,13 @@ def run_elixir_test_2():
     for j in range(NR_CLIENTS):
         clients[j].send_message(f"user{i}")
 
+if __name__ == "__main__":
+    create_server_and_clients()
+    run_elixir_test_1()
     destroy_server_and_clients()
 
-if __name__ == "__main__":
-    run_elixir_test_1()
     input("")
+    
+    create_server_and_clients()
     run_elixir_test_2()
+    destroy_server_and_clients()

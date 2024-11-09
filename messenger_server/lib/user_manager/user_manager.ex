@@ -1,6 +1,8 @@
 defmodule UserManager do
   use GenServer
 
+  require Logger
+
   defguardp verify_bin(binary, length)
             when is_binary(binary) and byte_size(binary) == length
 

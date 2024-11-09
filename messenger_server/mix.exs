@@ -3,9 +3,9 @@ defmodule Server.MixProject do
 
   def project do
     [
-      app: :server,
+      app: :messenger_server,
       version: "0.1.0",
-      elixir: "~> 1.15.7",
+      elixir: ">= 1.15.7",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -22,6 +22,8 @@ defmodule Server.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ecto_sql, "~> 3.12.1"},
+      {:postgrex, ">= 0.19.2"},
       {:bcrypt_elixir, ">= 3.2.0"}
     ]
   end

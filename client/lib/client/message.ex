@@ -36,7 +36,7 @@ defmodule Client.Message do
       result ->
         Logger.notice("Message sent to #{inspect(recipient_uuid)}")
 
-        result
+        true
     end
   end
 
