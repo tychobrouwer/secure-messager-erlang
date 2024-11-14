@@ -43,33 +43,4 @@ defmodule TCPServerTest do
     assert byte_size(uuid) == 20
     assert is_binary(uuid)
   end
-
-  test "get_pid" do
-    pid = GenServer.call(TCPServer, {:get_pid})
-    assert is_pid(pid)
-  end
-
-  test "tcp_server" do
-    pid = GenServer.call(TCPServer, {:get_pid})
-
-    conn_id = TCPServer.Utils.uuid()
-
-    GenServer.cast(TCPServer, {:add_connection, conn_id, pid})
-    client_1 = GenServer.call(TCPServer, {:get_client_id, conn_id})
-
-    assert client_1 == nil
-
-    user_id_hash = :crypto.hash(:sha, "user1")
-
-    GenServer.cast(TCPServer, {:update_connection, conn_id, user_id_hash, nil})
-
-    client_1 = GenServer.call(TCPServer, {:get_client_id, conn_id})
-    assert client_1 == user_id_hash
-
-    GenServer.cast(TCPServer, {:remove_connection, conn_id})
-
-    client_1 = GenServer.call(TCPServer, {:get_client_id, conn_id})
-
-    assert client_1 == nil
-  end
 end

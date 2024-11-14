@@ -10,7 +10,6 @@ defmodule ContactManager do
   @type ratchet :: Crypt.Ratchet.ratchet()
   @type keypair :: Crypt.Keys.keypair()
   @type contact :: %{
-          contact_id: binary,
           contact_pub_key: binary,
           keypair: keypair,
           dh_ratchet: ratchet | nil,
@@ -28,10 +27,9 @@ defmodule ContactManager do
   end
 
   @impl true
-  def handle_cast({:add_contact, contact_uuid, contact_id, contact_pub_key}, state)
-      when verify_bin(contact_uuid, 20) and is_binary(contact_id) and
-             verify_bin(contact_pub_key, 32) do
-    if Map.get(state, contact_uuid) != nil do
+  def handle_cast({:add_contact, contact_id_hash, contact_pub_key}, state)
+      when verify_bin(contact_id_hash, 20) and verify_bin(contact_pub_key, 32) do
+    if Map.get(state, contact_id_hash) != nil do
       Logger.error("Contact already exists")
 
       exit("Dont call add contact if it already exists")
@@ -42,8 +40,7 @@ defmodule ContactManager do
     dh_ratchet = Crypt.Ratchet.rk_ratchet_init(keypair, contact_pub_key)
 
     new_state =
-      Map.put(state, contact_uuid, %{
-        contact_id: contact_id,
+      Map.put(state, contact_id_hash, %{
         contact_pub_key: contact_pub_key,
         keypair: keypair,
         dh_ratchet: dh_ratchet,
@@ -55,8 +52,9 @@ defmodule ContactManager do
   end
 
   @impl true
-  def handle_cast({:remove_contact, contact_uuid}, state) when verify_bin(contact_uuid, 20) do
-    new_state = Map.delete(state, contact_uuid)
+  def handle_cast({:remove_contact, contact_id_hash}, state)
+      when verify_bin(contact_id_hash, 20) do
+    new_state = Map.delete(state, contact_id_hash)
 
     {:noreply, new_state}
   end
@@ -69,16 +67,17 @@ defmodule ContactManager do
   end
 
   @impl true
-  def handle_call({:get_contact, contact_uuid}, _from, state) when verify_bin(contact_uuid, 20) do
-    contact = Map.get(state, contact_uuid)
+  def handle_call({:get_contact, contact_id_hash}, _from, state)
+      when verify_bin(contact_id_hash, 20) do
+    contact = Map.get(state, contact_id_hash)
 
     {:reply, contact, state}
   end
 
   @impl true
-  def handle_call({:cycle_contact_sending, contact_uuid}, _from, state)
-      when verify_bin(contact_uuid, 20) do
-    contact = Map.get(state, contact_uuid)
+  def handle_call({:cycle_contact_sending, contact_id_hash}, _from, state)
+      when verify_bin(contact_id_hash, 20) do
+    contact = Map.get(state, contact_id_hash)
 
     keypair =
       if contact.state != nil && contact.state != :sending do
@@ -105,7 +104,7 @@ defmodule ContactManager do
         updated_contact = Map.put(updated_contact, :dh_ratchet, dh_ratchet)
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
         updated_contact = Map.put(updated_contact, :state, :sending)
-        new_state = Map.put(state, contact_uuid, updated_contact)
+        new_state = Map.put(state, contact_id_hash, updated_contact)
 
         {:reply, updated_contact, new_state}
 
@@ -113,16 +112,16 @@ defmodule ContactManager do
         m_ratchet = Crypt.Ratchet.ck_cycle(updated_contact.m_ratchet.root_key)
 
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
-        new_state = Map.put(state, contact_uuid, updated_contact)
+        new_state = Map.put(state, contact_id_hash, updated_contact)
 
         {:reply, updated_contact, new_state}
     end
   end
 
   @impl true
-  def handle_call({:cycle_contact_receiving, contact_uuid, pub_key}, _from, state)
-      when verify_bin(contact_uuid, 20) and verify_bin(pub_key, 32) do
-    contact = Map.get(state, contact_uuid)
+  def handle_call({:cycle_contact_receiving, contact_id_hash, pub_key}, _from, state)
+      when verify_bin(contact_id_hash, 20) and verify_bin(pub_key, 32) do
+    contact = Map.get(state, contact_id_hash)
 
     contact_state = contact.state || :sending
 
@@ -142,7 +141,7 @@ defmodule ContactManager do
         updated_contact = Map.put(updated_contact, :dh_ratchet, dh_ratchet)
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
         updated_contact = Map.put(updated_contact, :state, :receiving)
-        new_state = Map.put(state, contact_uuid, updated_contact)
+        new_state = Map.put(state, contact_id_hash, updated_contact)
 
         {:reply, updated_contact, new_state}
 
@@ -150,7 +149,7 @@ defmodule ContactManager do
         m_ratchet = Crypt.Ratchet.ck_cycle(contact.m_ratchet.root_key)
 
         updated_contact = Map.put(updated_contact, :m_ratchet, m_ratchet)
-        new_state = Map.put(state, contact_uuid, updated_contact)
+        new_state = Map.put(state, contact_id_hash, updated_contact)
 
         {:reply, updated_contact, new_state}
     end

@@ -12,10 +12,6 @@ defmodule TCPServer.Utils do
           | :message
           | :req_messages
           | :res_messages
-          | :req_uuid
-          | :res_uuid
-          | :req_id
-          | :res_id
           | :req_pub_key
           | :res_pub_key
 
@@ -51,12 +47,8 @@ defmodule TCPServer.Utils do
       :message -> 9
       :req_messages -> 10
       :res_messages -> 11
-      :req_uuid -> 12
-      :res_uuid -> 13
-      :req_id -> 14
-      :res_id -> 15
-      :req_pub_key -> 16
-      :res_pub_key -> 17
+      :req_pub_key -> 12
+      :res_pub_key -> 13
       _ -> nil
     end
   end
@@ -75,12 +67,8 @@ defmodule TCPServer.Utils do
       <<9>> -> :message
       <<10>> -> :req_messages
       <<11>> -> :res_messages
-      <<12>> -> :req_uuid
-      <<13>> -> :res_uuid
-      <<14>> -> :req_id
-      <<15>> -> :res_id
-      <<16>> -> :req_pub_key
-      <<17>> -> :res_pub_key
+      <<12>> -> :req_pub_key
+      <<13>> -> :res_pub_key
       _ -> nil
     end
   end

@@ -3,7 +3,7 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 10
+NR_CLIENTS = 3
 PORT = 4000
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
@@ -115,14 +115,14 @@ class Client:
             return
 
         # contact_uuid = Client.Contact.add_contact(user_uuid, user_id)
-        self.process.send_input(f"contact_uuid_{user_id} = Client.Contact.add_contact(nil, \"{user_id}\")")
+        self.process.send_input(f"Client.Contact.add_contact(:crypto.hash(:sha, \"{user_id}\"))")
 
     def send_message(self, user_id):
         if user_id == self.user_id:
             return
 
         # Client.Message.send("Hello World! 1", contact_uuid)
-        self.process.send_input(f"Client.Message.send(\"{TEST_MESSAGE}\", contact_uuid_{user_id})")
+        self.process.send_input(f"Client.Message.send(\"{TEST_MESSAGE}\", :crypto.hash(:sha, \"{user_id}\"))")
 
     def stop(self):
         self.process.stop()

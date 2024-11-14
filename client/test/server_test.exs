@@ -13,7 +13,6 @@ defmodule TCPServerTester do
       :ack,
       :error,
       :handshake,
-      :handshake_ack,
       :req_login,
       :res_login,
       :req_signup,

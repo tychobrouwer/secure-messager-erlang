@@ -20,12 +20,13 @@ defmodule Client.Account do
           nonce
       end
 
+    # Should be retrieved from the local database
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
-    hashed_password = Bcrypt.Base.hash_password(user_password, local_salt)
-    hashed_password_with_nonce = Bcrypt.Base.hash_password(hashed_password, nonce)
+    password_hash = Bcrypt.Base.hash_password(user_password, local_salt)
+    password_hash_with_nonce = :crypto.crypto_one_time(:sha256, nonce, password_hash, true)
 
-    login_data = user_id_hash <> hashed_password_with_nonce
+    login_data = user_id_hash <> password_hash_with_nonce
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
@@ -49,10 +50,10 @@ defmodule Client.Account do
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
     public_key = GenServer.call(ContactManager, {:generate_keypair})
-    hashed_password = Bcrypt.Base.hash_password(user_password, local_salt)
+    password_hash = Bcrypt.Base.hash_password(user_password, local_salt)
 
     user_id_hash = :crypto.hash(:sha, user_id)
-    signup_data = user_id_hash <> public_key <> hashed_password
+    signup_data = user_id_hash <> public_key <> password_hash
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 

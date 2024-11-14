@@ -27,10 +27,9 @@ defmodule TCPServer.Acceptor do
   defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
 
-    # conn_uuid should be gotten from database
     conn_uuid = Utils.uuid()
 
-    Logger.notice("New connection -> uid : #{inspect(conn_uuid)}")
+    Logger.notice("New connection -> conn_uuid : #{inspect(conn_uuid)}")
 
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
@@ -70,7 +69,7 @@ defmodule TCPServer.Acceptor do
         exit(:error)
 
       {:send_data, type, message_id, message} ->
-        DataHandler.send_data(socket, type, conn_uuid, message_id, message)
+        DataHandler.send_data(socket, type, message_id, message)
 
       msg ->
         Logger.info("Unhandled message -> #{inspect(msg)}")

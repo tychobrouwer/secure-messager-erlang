@@ -16,7 +16,6 @@ defmodule TCPServer.DataHandler do
     %{
       version: _version,
       type_bin: type_bin,
-      uuid: _uuid,
       message_id: message_id,
       data: packet_data
     } = parse_packet(packet)
@@ -38,7 +37,7 @@ defmodule TCPServer.DataHandler do
         end
 
       :handshake ->
-        GenServer.cast(TCPServer, {:set_uuid, packet_data})
+        nil
 
       :message ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
@@ -69,18 +68,6 @@ defmodule TCPServer.DataHandler do
           Client.Message.receive(packet_data)
         end)
 
-      :res_uuid ->
-        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
-          nil -> nil
-          pid -> send(pid, {:req_response, packet_data})
-        end
-
-      :res_id ->
-        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
-          nil -> nil
-          pid -> send(pid, {:req_response, packet_data})
-        end
-
       :res_pub_key ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil
@@ -93,12 +80,11 @@ defmodule TCPServer.DataHandler do
   end
 
   defp parse_packet(packet) do
-    <<version::integer-size(8), type_bin::binary-size(1), uuid::binary-size(20),
-      message_id::binary-size(20),
+    <<version::integer-size(8), type_bin::binary-size(1), message_id::binary-size(20),
       data::binary>> =
       packet
 
-    %{version: version, type_bin: type_bin, uuid: uuid, message_id: message_id, data: data}
+    %{version: version, type_bin: type_bin, message_id: message_id, data: data}
   end
 
   @doc """
@@ -162,12 +148,6 @@ defmodule TCPServer.DataHandler do
     do: {:error, :invalid_packet_data}
 
   defp create_packet(version, type_int, message_id, data) do
-    uuid = GenServer.call(TCPServer, {:get_uuid})
-
-    if is_binary(uuid) do
-      <<version::8, type_int::8>> <> uuid <> message_id <> <<data::binary>>
-    else
-      {:error, :invalid_uuid}
-    end
+    <<version::8, type_int::8>> <> message_id <> <<data::binary>>
   end
 end

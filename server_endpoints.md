@@ -28,18 +28,6 @@ Handshake atom. Sent by the server to initiate a handshake with the client.
 
 `<<1, :handshake, user_uuid>>`
 
-## :handshake_ack (CLIENT ONLY)
-
-Handshake acknowledgement atom. Sent by the client to acknowledge the handshake.
-
-Returns the user id of the client (ex. email, username, phone number, etc). TODO: Authenticate the user.
-
-<!-- ## :auth (SERVER ONLY)
-
-Authentication atom. Sent by the server to authenticate the client.
-
-`<<1, :handshake_ack, user_id>>` -->
-
 ## :message (CLIENT ONLY)
 
 Message atom. Sent by the client to send a message to the server.
@@ -48,7 +36,7 @@ Sends the user_uuid, recipient_uuid, message_uuid, encrypted message, encryption
 
 user_uuid: length 20 bytes -> Base.decode16!(user_uuid)
 recipient_uuid: length 20 bytes -> Base.decode16!(recipient_uuid)
-message_uuid: length 20 bytes -> Base.decode16!(Utils.uuid())
+message_id: length 20 bytes -> Base.decode16!(Utils.uuid())
 message_object: length unknown -> :erlang.term_to_binary(message_object)
 
 `<<1, :message, user_uuid, recipient_uuid, message_uuid, message_object>>`

@@ -17,12 +17,6 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:set_uuid, uuid}, state) when verify_bin(uuid, 20) do
-    new_state = Map.put(state, "uuid", uuid)
-    {:noreply, new_state}
-  end
-
-  @impl true
   def handle_cast({:add_connection, pid}, state) when is_pid(pid) do
     new_state = Map.put(state, "tcp_pid", pid)
 
@@ -98,11 +92,6 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_uuid}, _from, state) do
-    {:reply, Map.get(state, "uuid"), state}
-  end
-
-  @impl true
   def handle_call({:get_connection_pid}, _from, state) do
     {:reply, Map.get(state, "tcp_pid"), state}
   end
@@ -110,6 +99,13 @@ defmodule TCPServer do
   @impl true
   def handle_call({:get_receive_pid, message_id}, _from, state) when verify_bin(message_id, 20) do
     {:reply, Map.get(state, message_id), state}
+  end
+
+  @impl true
+  def handle_call(request, _from, state) do
+    Logger.error("Unknown call request tcp_server -> #{inspect(request)}")
+
+    {:reply, nil, state}
   end
 
   def send_receive_data(req_type, message_id, data)
@@ -140,12 +136,5 @@ defmodule TCPServer do
     GenServer.cast(TCPServer, {:remove_receive_pid, message_id})
 
     result
-  end
-
-  @impl true
-  def handle_call(request, _from, state) do
-    Logger.error("Unknown call request tcp_server -> #{inspect(request)}")
-
-    {:reply, nil, state}
   end
 end
