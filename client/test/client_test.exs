@@ -10,22 +10,22 @@ defmodule ClientTest do
   test "signup" do
     random = get_random_utf8_string()
 
-    nil_token = <<0::size(29 * 8)>>
+    nil_token = <<0::size(32 * 8)>>
     token = Client.Account.signup(random, random)
 
     assert token != nil
-    assert byte_size(token) == 29
+    assert byte_size(token) == 32
     assert token != nil_token
   end
 
   test "signup_failed" do
     random = get_random_utf8_string()
 
-    nil_token = <<0::size(29 * 8)>>
+    nil_token = <<0::size(32 * 8)>>
     token = Client.Account.signup(random, random)
 
     assert token != nil
-    assert byte_size(token) == 29
+    assert byte_size(token) == 32
     assert token != nil_token
 
     token = Client.Account.signup(random, random)
@@ -36,17 +36,17 @@ defmodule ClientTest do
   test "login" do
     random = get_random_utf8_string()
 
-    nil_token = <<0::size(29 * 8)>>
+    nil_token = <<0::size(32 * 8)>>
     token = Client.Account.signup(random, random)
 
     assert token != nil
-    assert byte_size(token) == 29
+    assert byte_size(token) == 32
     assert token != nil_token
 
     token = Client.Account.login(random, random)
 
     assert token != nil
-    assert byte_size(token) == 29
+    assert byte_size(token) == 32
     assert token != nil_token
   end
 
@@ -54,11 +54,11 @@ defmodule ClientTest do
     random = get_random_utf8_string()
     random1 = get_random_utf8_string()
 
-    nil_token = <<0::size(29 * 8)>>
+    nil_token = <<0::size(32 * 8)>>
     token = Client.Account.signup(random, random)
 
     assert token != nil
-    assert byte_size(token) == 29
+    assert byte_size(token) == 32
     assert token != nil_token
 
     token = Client.Account.login(random, random1)

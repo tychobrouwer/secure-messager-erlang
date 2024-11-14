@@ -65,12 +65,3 @@ defmodule Client.Message do
     Logger.notice("Decrypted message -> #{valid} : #{decrypted_message}")
   end
 end
-
-# data = %{
-#   sender_id_hash: <<0>>,
-#   receiver_id_hash: <<0>>,
-#   tag: <<0>>,
-#   hash: <<0>>,
-#   public_key: <<0>>,
-#   message: <<0>>
-# }

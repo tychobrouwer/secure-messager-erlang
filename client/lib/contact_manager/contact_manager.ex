@@ -28,7 +28,7 @@ defmodule ContactManager do
 
   @impl true
   def handle_cast({:add_contact, contact_id_hash, contact_pub_key}, state)
-      when verify_bin(contact_id_hash, 20) and verify_bin(contact_pub_key, 32) do
+      when verify_bin(contact_id_hash, 16) and verify_bin(contact_pub_key, 32) do
     if Map.get(state, contact_id_hash) != nil do
       Logger.error("Contact already exists")
 
@@ -53,7 +53,7 @@ defmodule ContactManager do
 
   @impl true
   def handle_cast({:remove_contact, contact_id_hash}, state)
-      when verify_bin(contact_id_hash, 20) do
+      when verify_bin(contact_id_hash, 16) do
     new_state = Map.delete(state, contact_id_hash)
 
     {:noreply, new_state}
@@ -68,7 +68,7 @@ defmodule ContactManager do
 
   @impl true
   def handle_call({:get_contact, contact_id_hash}, _from, state)
-      when verify_bin(contact_id_hash, 20) do
+      when verify_bin(contact_id_hash, 16) do
     contact = Map.get(state, contact_id_hash)
 
     {:reply, contact, state}
@@ -76,7 +76,7 @@ defmodule ContactManager do
 
   @impl true
   def handle_call({:cycle_contact_sending, contact_id_hash}, _from, state)
-      when verify_bin(contact_id_hash, 20) do
+      when verify_bin(contact_id_hash, 16) do
     contact = Map.get(state, contact_id_hash)
 
     keypair =
@@ -120,7 +120,7 @@ defmodule ContactManager do
 
   @impl true
   def handle_call({:cycle_contact_receiving, contact_id_hash, pub_key}, _from, state)
-      when verify_bin(contact_id_hash, 20) and verify_bin(pub_key, 32) do
+      when verify_bin(contact_id_hash, 16) and verify_bin(pub_key, 32) do
     contact = Map.get(state, contact_id_hash)
 
     contact_state = contact.state || :sending
@@ -157,7 +157,15 @@ defmodule ContactManager do
 
   @impl true
   def handle_call({:generate_keypair}, _from, state) do
-    keypair = Crypt.Keys.generate_keypair()
+    # keypair = Crypt.Keys.generate_keypair()
+    keypair = %{
+      public:
+        <<127, 172, 209, 228, 158, 231, 246, 100, 228, 45, 149, 194, 186, 61, 162, 91, 142, 106,
+          25, 227, 127, 233, 133, 94, 159, 61, 169, 49, 142, 34, 122, 100>>,
+      private:
+        <<248, 16, 166, 102, 149, 67, 173, 100, 83, 230, 198, 40, 85, 168, 147, 255, 190, 173,
+          255, 139, 240, 189, 93, 177, 6, 154, 105, 94, 154, 155, 160, 92>>
+    }
 
     new_state = Map.put(state, "keypair", keypair)
 

@@ -1,13 +1,16 @@
 defmodule DbManager.Message do
   use Ecto.Schema
 
+  require Logger
+
   alias DbManager.Repo, as: Repo
   alias DbManager.User, as: User
   alias DbManager.Message, as: Message
 
   alias Ecto.Changeset, as: Changeset
 
-  @primary_key {:uuid, :binary_id, autogenerate: true}
+  @primary_key {:message_id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
 
   schema("messages") do
     field(:tag, :binary)
@@ -15,8 +18,10 @@ defmodule DbManager.Message do
     field(:public_key, :binary)
     field(:message, :binary)
 
-    belongs_to(:sender, User, foreign_key: :sender_id, references: :id_hash)
-    belongs_to(:reciever, User, foreign_key: :receiver_id, references: :id_hash)
+    timestamps()
+
+    belongs_to(:sender, User, foreign_key: :sender_id, references: :user_id)
+    belongs_to(:reciever, User, foreign_key: :receiver_id, references: :user_id)
   end
 
   def changeset(message, params \\ %{}) do
@@ -35,21 +40,26 @@ defmodule DbManager.Message do
     ])
   end
 
-  def receive(sender_id, receiver_id, tag, hash, public_key, message) do
+  def receive(sender_id_hash, receiver_id_hash, tag, hash, public_key, message) do
+    {:ok, sender_id} = Ecto.UUID.cast(sender_id_hash)
+    {:ok, receiver_id} = Ecto.UUID.cast(receiver_id_hash)
+
     case transaction_wrapper(fn ->
-           %Message{}
-           |> Message.changeset(%{
-             tag: tag,
-             hash: hash,
-             public_key: public_key,
-             message: message,
-             sender_id: sender_id,
-             receiver_id: receiver_id
-           })
-           |> Repo.insert()
+           changset =
+             %Message{}
+             |> Message.changeset(%{
+               tag: tag,
+               hash: hash,
+               public_key: public_key,
+               message: message,
+               sender_id: sender_id,
+               receiver_id: receiver_id
+             })
+
+           Repo.insert(changset)
          end) do
       {:ok, message} ->
-        message.uuid
+        message.message_id
 
       {:error, changeset} ->
         Repo.rollback(changeset)

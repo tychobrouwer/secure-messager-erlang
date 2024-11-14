@@ -80,7 +80,7 @@ defmodule TCPServer.DataHandler do
   end
 
   defp parse_packet(packet) do
-    <<version::integer-size(8), type_bin::binary-size(1), message_id::binary-size(20),
+    <<version::integer-size(8), type_bin::binary-size(1), message_id::binary-size(16),
       data::binary>> =
       packet
 

@@ -3,13 +3,15 @@ defmodule DbManager.Repo.Migrations.CreateUsers do
 
   def change() do
     create(table(:users)) do
-      add(:id_hash, :binary)
-      add(:public_key, :binary)
-      add(:password_hash, :binary)
+      add(:user_id, :binary_id, primary_key: true)
+      add(:public_key, :binary, null: false)
+      add(:password_hash, :binary, null: false)
       add(:nonce, :binary)
       add(:token, :binary)
+
+      timestamps()
     end
 
-    create(unique_index(:users, [:id_hash]))
+    create(unique_index(:users, [:user_id]))
   end
 end

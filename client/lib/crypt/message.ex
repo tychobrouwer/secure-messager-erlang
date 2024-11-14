@@ -83,7 +83,7 @@ defmodule Crypt.Message do
           ~c""
 
         padded_message ->
-          pkcs7_unpad(padded_message)
+          pkcs7_unpad(padded_message, 16)
       end
 
     mac_hash =
@@ -101,9 +101,9 @@ defmodule Crypt.Message do
     data <> :binary.copy(<<padding::size(8)>>, padding)
   end
 
-  defp pkcs7_unpad(data) do
+  defp pkcs7_unpad(data, block_size) do
     length = :binary.last(data)
-    length = if length > 0 and length <= 16, do: length, else: 0
+    length = if length > 0 and length <= block_size, do: length, else: 0
 
     :binary.part(data, 0, byte_size(data) - length)
   end

@@ -3,7 +3,7 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 3
+NR_CLIENTS = 10
 PORT = 4000
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
@@ -106,6 +106,10 @@ class Client:
         self.user_id = f"user{id}"
         user_password = f"password{id}"
 
+    def login(self):
+        # token = Client.Account.login(user_id, user_password)
+        self.process.send_input(f"token = Client.Account.login(\"{self.user_id}\", \"password\")")
+
     def signup(self):
         # token = Client.Account.signup(user_id, user_password)
         self.process.send_input(f"token = Client.Account.signup(\"{self.user_id}\", \"password\")")
@@ -115,14 +119,14 @@ class Client:
             return
 
         # contact_uuid = Client.Contact.add_contact(user_uuid, user_id)
-        self.process.send_input(f"Client.Contact.add_contact(:crypto.hash(:sha, \"{user_id}\"))")
+        self.process.send_input(f"Client.Contact.add_contact(:crypto.hash(:md4, \"{user_id}\"))")
 
     def send_message(self, user_id):
         if user_id == self.user_id:
             return
 
         # Client.Message.send("Hello World! 1", contact_uuid)
-        self.process.send_input(f"Client.Message.send(\"{TEST_MESSAGE}\", :crypto.hash(:sha, \"{user_id}\"))")
+        self.process.send_input(f"Client.Message.send(\"{TEST_MESSAGE}\", :crypto.hash(:md4, \"{user_id}\"))")
 
     def stop(self):
         self.process.stop()
@@ -144,7 +148,7 @@ def create_server_and_clients():
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Signing up...")
 
     for i in range(NR_CLIENTS):
-        clients[i].signup()
+        clients[i].login()
 
     input("")
 

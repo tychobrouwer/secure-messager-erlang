@@ -9,39 +9,44 @@ defmodule DbManager.User do
 
   alias Ecto.Changeset, as: Changeset
 
+  @foreign_key_type :binary_id
+
   schema("users") do
-    field(:id_hash, :binary)
+    field(:user_id, :binary_id)
     field(:public_key, :binary)
     field(:password_hash, :binary)
     field(:nonce, :binary)
     field(:token, :binary)
 
-    has_many(:send_messages, Message, foreign_key: :sender_id, references: :id_hash)
-    has_many(:received_messages, Message, foreign_key: :receiver_id, references: :id_hash)
+    timestamps()
+
+    has_many(:send_messages, Message, foreign_key: :sender_id, references: :user_id)
+    has_many(:received_messages, Message, foreign_key: :receiver_id, references: :user_id)
   end
 
   def changeset(user, params \\ %{}) do
     user
     |> Changeset.cast(
       params,
-      [:id_hash, :public_key, :password_hash, :nonce, :token]
+      [:user_id, :public_key, :password_hash, :nonce, :token]
     )
-    |> Changeset.validate_required([:id_hash, :public_key, :password_hash, :token])
-    |> Changeset.unique_constraint(:id_hash)
+    |> Changeset.validate_required([:user_id, :public_key, :password_hash])
+    |> Changeset.unique_constraint(:user_id)
   end
 
   def signup(id_hash, public_key, password) do
-    token = Bcrypt.Base.gen_salt(12, false)
-    nonce = nil
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
+
+    token = :crypto.strong_rand_bytes(32)
     password_hash = Bcrypt.hash_pwd_salt(password)
 
     case transaction_wrapper(fn ->
            %User{}
            |> User.changeset(%{
-             id_hash: id_hash,
+             user_id: user_id,
              public_key: public_key,
              password_hash: password_hash,
-             nonce: nonce,
+             nonce: nil,
              token: token
            })
            |> Repo.insert()
@@ -50,8 +55,8 @@ defmodule DbManager.User do
         {:ok, token}
 
       error ->
-        if List.keyfind(error.errors, :id_hash, 0) != nil do
-          {:error, :id_hash_exists}
+        if List.keyfind(error.errors, :user_id, 0) != nil do
+          {:error, :user_exists}
         else
           {:error, :internal_error}
         end
@@ -59,7 +64,9 @@ defmodule DbManager.User do
   end
 
   def login(id_hash, password_with_nonce) do
-    case User |> Repo.get_by(id_hash: id_hash) do
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
+
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :login_failed}
 
@@ -67,7 +74,7 @@ defmodule DbManager.User do
         result = verify_user_pass(user.password_hash, user.nonce, password_with_nonce)
 
         if result do
-          token = Bcrypt.Base.gen_salt(12, false)
+          token = :crypto.strong_rand_bytes(32)
 
           case transaction_wrapper(fn ->
                  User.changeset(user, %{token: token, nonce: nil})
@@ -89,7 +96,9 @@ defmodule DbManager.User do
   end
 
   def get_user_pub_key(id_hash) do
-    case User |> Repo.get_by(id_hash: id_hash) do
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
+
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -98,26 +107,30 @@ defmodule DbManager.User do
     end
   end
 
-  def gen_nonce(id_hash) do
-    nonce = Bcrypt.Base.gen_salt(12, false)
+  def get_nonce(id_hash) do
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get_by(id_hash: id_hash) do
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :user_not_found}
 
       user ->
+        nonce = :crypto.strong_rand_bytes(32)
+
         case transaction_wrapper(fn ->
                User.changeset(user, %{nonce: nonce})
                |> Repo.update()
              end) do
-          {:ok, _} -> nonce
+          {:ok, _} -> {:ok, nonce}
           {:error, _} -> {:error, :internal_error}
         end
     end
   end
 
   def verify_token(id_hash, token) do
-    case User |> Repo.get_by(id_hash: id_hash) do
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
+
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -152,11 +165,19 @@ defmodule DbManager.User do
   end
 
   defp verify_user_pass(password_hash, nonce, pass_with_nonce) do
-    pass = :crypto.crypto_one_time(:sha256, nonce, pass_with_nonce, false)
+    pass = :crypto.crypto_one_time(:aes_256_ecb, nonce, pass_with_nonce, false)
+    pass = pkcs7_unpad(pass, 16)
 
     case Bcrypt.verify_pass(pass, password_hash) do
       true -> true
       _ -> false
     end
+  end
+
+  defp pkcs7_unpad(data, block_size) do
+    length = :binary.last(data)
+    length = if length > 0 and length <= block_size, do: length, else: 0
+
+    :binary.part(data, 0, byte_size(data) - length)
   end
 end

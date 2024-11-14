@@ -80,6 +80,6 @@ defmodule TCPServer.Utils do
 
     uuid_bytes = <<perf_counter::64, random::32>> <> pid
 
-    :crypto.hash(:sha, uuid_bytes)
+    :crypto.hash(:md4, uuid_bytes)
   end
 end

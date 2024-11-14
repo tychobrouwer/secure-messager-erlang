@@ -6,7 +6,10 @@ defmodule Client.Account do
   require Logger
 
   def login(user_id, user_password) do
-    user_id_hash = :crypto.hash(:sha, user_id)
+    user_id_hash = :crypto.hash(:md4, user_id)
+
+    # TODO: Should be read from the local database seperate for each account
+    GenServer.call(ContactManager, {:generate_keypair})
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
@@ -23,10 +26,12 @@ defmodule Client.Account do
     # Should be retrieved from the local database
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
-    password_hash = Bcrypt.Base.hash_password(user_password, local_salt)
-    password_hash_with_nonce = :crypto.crypto_one_time(:sha256, nonce, password_hash, true)
+    pass = Bcrypt.Base.hash_password(user_password, local_salt)
+    pass = pkcs7_pad(pass, 16)
 
-    login_data = user_id_hash <> password_hash_with_nonce
+    pass_with_nonce = :crypto.crypto_one_time(:aes_256_ecb, nonce, pass, true)
+
+    login_data = user_id_hash <> pass_with_nonce
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
@@ -45,15 +50,17 @@ defmodule Client.Account do
   end
 
   def signup(user_id, user_password) do
-    # Should be generated here and stored in the local database
+    # TODO: Should be generated here and stored in the local database seperate for each account
     # local_salt = Bcrypt.Base.gen_salt(12, false)
     local_salt = "$2b$12$B13AAtXc39YohiOdbtiU6O"
 
+    # TODO: Should be generated here and stored in the local database seperate for each account
     public_key = GenServer.call(ContactManager, {:generate_keypair})
-    password_hash = Bcrypt.Base.hash_password(user_password, local_salt)
 
-    user_id_hash = :crypto.hash(:sha, user_id)
-    signup_data = user_id_hash <> public_key <> password_hash
+    pass = Bcrypt.Base.hash_password(user_password, local_salt)
+
+    user_id_hash = :crypto.hash(:md4, user_id)
+    signup_data = user_id_hash <> public_key <> pass
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
 
@@ -70,4 +77,13 @@ defmodule Client.Account do
         token
     end
   end
+
+  defp pkcs7_pad(data, block_size) do
+    padding = block_size - rem(byte_size(data), block_size)
+    padding = if padding == 0, do: block_size, else: padding
+
+    data <> :binary.copy(<<padding::size(8)>>, padding)
+  end
 end
+
+# message = pkcs7_pad(message, 16)

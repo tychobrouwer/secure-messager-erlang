@@ -12,7 +12,7 @@ defmodule TCPServer.DataHandler do
   Handle incoming data.
   """
 
-  def handle_data(packet, _conn_uuid) when not is_binary(packet) or byte_size(packet) < 22,
+  def handle_data(packet, _conn_uuid) when not is_binary(packet) or byte_size(packet) < 25,
     do: {:error, :invalid_packet}
 
   def handle_data(_packet, conn_uuid) when not is_binary(conn_uuid),
@@ -44,9 +44,13 @@ defmodule TCPServer.DataHandler do
         nil
 
       {:req_nonce, {_id_hash, req_id_hash}} ->
-        nonce = DbManager.User.gen_nonce(req_id_hash)
+        case DbManager.User.get_nonce(req_id_hash) do
+          {:ok, nonce} ->
+            GenServer.call(TCPServer, {:send_data, :res_nonce, conn_uuid, message_id, nonce})
 
-        GenServer.call(TCPServer, {:send_data, :res_nonce, conn_uuid, message_id, nonce})
+          {:error, reason} ->
+            GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
+        end
 
       {:req_login, {id_hash, hashed_password}} ->
         case DbManager.User.login(id_hash, hashed_password) do
@@ -59,7 +63,7 @@ defmodule TCPServer.DataHandler do
         end
 
       {:req_signup, {id_hash, signup_data}} ->
-        <<public_key::binary-size(32), hashed_password::binary>> = signup_data
+        <<public_key::binary-size(32), hashed_password::binary-size(60)>> = signup_data
 
         case DbManager.User.signup(id_hash, public_key, hashed_password) do
           {:ok, token} ->
@@ -108,7 +112,7 @@ defmodule TCPServer.DataHandler do
                   message
                 )
 
-              case GenServer.call(TCPServer, {:get_connection_uuid, receiver_id_hash}) do
+              case GenServer.call(TCPServer, {:get_connection_id_hash, receiver_id_hash}) do
                 nil ->
                   nil
 
@@ -166,7 +170,7 @@ defmodule TCPServer.DataHandler do
   end
 
   defp parse_packet(packet_data) do
-    <<version::integer-size(8), type_bin::binary-size(1), message_id::binary-size(20),
+    <<version::integer-size(8), type_bin::binary-size(1), message_id::binary-size(16),
       data::binary>> = packet_data
 
     %{
@@ -180,24 +184,24 @@ defmodule TCPServer.DataHandler do
   defp parse_packet_data({:error, reason}, _packet_response_type),
     do: {:error, reason}
 
-  defp parse_packet_data(packet_data, :no_auth) when byte_size(packet_data) < 20,
+  defp parse_packet_data(packet_data, :no_auth) when byte_size(packet_data) < 16,
     do: {:error, :invalid_packet_no_auth}
 
   defp parse_packet_data(packet_data, :with_auth)
-       when byte_size(packet_data) < 20 + 29,
+       when byte_size(packet_data) < 16 + 32,
        do: {:error, :invalid_packet_with_auth}
 
   defp parse_packet_data(packet_data, :plain),
     do: {nil, packet_data}
 
   defp parse_packet_data(packet_data, :no_auth) do
-    <<id_hash::binary-size(20), data::binary>> = packet_data
+    <<id_hash::binary-size(16), data::binary>> = packet_data
 
     {id_hash, data}
   end
 
   defp parse_packet_data(packet_data, :with_auth) do
-    <<id_hash::binary-size(20), token::binary-size(29), data::binary>> = packet_data
+    <<id_hash::binary-size(16), token::binary-size(32), data::binary>> = packet_data
 
     case DbManager.User.verify_token(id_hash, token) do
       {:ok, true} -> {id_hash, data}

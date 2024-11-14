@@ -31,7 +31,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:send_data, type, message_id, data}, state)
-      when is_atom(type) and verify_bin(message_id, 20) and is_binary(data) do
+      when is_atom(type) and verify_bin(message_id, 16) and is_binary(data) do
     pid = Map.get(state, "tcp_pid")
     auth = Utils.get_packet_response_type(type)
 
@@ -41,24 +41,24 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:set_receive_pid, message_id, pid}, state)
-      when verify_bin(message_id, 20) and is_pid(pid) do
+      when verify_bin(message_id, 16) and is_pid(pid) do
     new_state = Map.put(state, message_id, pid)
     {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:remove_receive_pid, message_id}, state) when verify_bin(message_id, 20) do
+  def handle_cast({:remove_receive_pid, message_id}, state) when verify_bin(message_id, 16) do
     new_state = Map.delete(state, message_id)
     {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:set_auth_token, token}, state) when verify_bin(token, 29) do
+  def handle_cast({:set_auth_token, token}, state) when verify_bin(token, 32) do
     {:noreply, Map.put(state, :auth_token, token)}
   end
 
   @impl true
-  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 20) do
+  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 16) do
     {:noreply, Map.put(state, :auth_id, id)}
   end
 
@@ -85,9 +85,9 @@ defmodule TCPServer do
     perf_counter = :os.perf_counter()
 
     if auth_id == nil do
-      {:reply, :crypto.hash(:sha, <<perf_counter::64>>), state}
+      {:reply, :crypto.hash(:md4, <<perf_counter::64>>), state}
     else
-      {:reply, :crypto.hash(:sha, <<perf_counter::64, auth_id::binary>>), state}
+      {:reply, :crypto.hash(:md4, <<perf_counter::64, auth_id::binary>>), state}
     end
   end
 
@@ -97,7 +97,7 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_receive_pid, message_id}, _from, state) when verify_bin(message_id, 20) do
+  def handle_call({:get_receive_pid, message_id}, _from, state) when verify_bin(message_id, 16) do
     {:reply, Map.get(state, message_id), state}
   end
 
@@ -109,7 +109,7 @@ defmodule TCPServer do
   end
 
   def send_receive_data(req_type, message_id, data)
-      when is_atom(req_type) and verify_bin(message_id, 20) and is_binary(data) do
+      when is_atom(req_type) and verify_bin(message_id, 16) and is_binary(data) do
     task =
       Task.async(fn ->
         GenServer.cast(TCPServer, {:set_receive_pid, message_id, self()})
@@ -120,8 +120,6 @@ defmodule TCPServer do
             response
 
           {:req_error_response, reason} ->
-            Logger.error("Error getting #{req_type} value: #{reason}")
-
             {:error, reason}
         after
           5000 ->

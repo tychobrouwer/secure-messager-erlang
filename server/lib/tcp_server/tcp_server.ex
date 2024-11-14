@@ -3,9 +3,6 @@ defmodule TCPServer do
 
   require Logger
 
-  defguardp verify_bin(binary, length)
-            when binary != nil and is_binary(binary) and byte_size(binary) == length
-
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -17,7 +14,7 @@ defmodule TCPServer do
 
   @impl true
   def handle_cast({:add_connection, conn_uuid, pid}, state) do
-    new_state = Map.put(state, conn_uuid, %{pid: pid, user_id: nil})
+    new_state = Map.put(state, conn_uuid, %{pid: pid, user_id_hash: nil})
 
     {:noreply, new_state}
   end
@@ -48,8 +45,7 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:send_data, type, conn_uuid, message_id, message}, _from, state)
-      when verify_bin(conn_uuid, 20) do
+  def handle_call({:send_data, type, conn_uuid, message_id, message}, _from, state) do
     case Map.get(state, conn_uuid) do
       %{pid: pid} ->
         send(pid, {:send_data, type, message_id, message})
@@ -61,9 +57,13 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_connection_uuid, user_id_hash}, _from, state) do
+  def handle_call({:get_connection_id_hash, req_user_id_hash}, _from, state) do
     conn_uuid =
-      state |> Enum.find(fn {_, %{user_id: user_id}} -> user_id == user_id_hash end) |> elem(0)
+      Enum.find_value(state, fn {conn_uuid, %{user_id_hash: user_id_hash}} ->
+        if user_id_hash == req_user_id_hash do
+          conn_uuid
+        end
+      end)
 
     {:reply, conn_uuid, state}
   end

@@ -3,10 +3,13 @@ defmodule DbManager.Repo.Migrations.CreateMessages do
 
   def change() do
     create(table(:messages)) do
-      add(:tag, :binary)
-      add(:hash, :binary)
-      add(:public_key, :binary)
-      add(:message, :binary)
+      add(:message_id, :binary_id, primary_key: true)
+      add(:tag, :binary, null: false)
+      add(:hash, :binary, null: false)
+      add(:public_key, :binary, null: false)
+      add(:message, :binary, null: false)
+
+      timestamps()
     end
   end
 end
