@@ -123,11 +123,6 @@ defmodule TCPServer.DataHandler do
                   )
               end
 
-              # GenServer.call(
-              #   TCPServer,
-              #   {:send_data, :res_messages, receiver_id_hash, message_id, message_bin}
-              # )
-
               GenServer.call(
                 TCPServer,
                 {:send_data, :message, conn_uuid, message_id, message_uuid}
