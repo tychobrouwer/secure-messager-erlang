@@ -9,5 +9,6 @@ defmodule DbManager.Repo.Migrations.MessageBelongsToUser do
 
     create(index(:messages, [:sender_id]))
     create(index(:messages, [:receiver_id]))
+    create(index(:messages, [:sender_id, :receiver_id]))
   end
 end
