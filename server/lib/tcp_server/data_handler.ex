@@ -44,7 +44,7 @@ defmodule TCPServer.DataHandler do
         nil
 
       {:req_nonce, {_id_hash, req_id_hash}} ->
-        case DbManager.User.get_nonce(req_id_hash) do
+        case DbManager.User.nonce(req_id_hash) do
           {:ok, nonce} ->
             GenServer.call(TCPServer, {:send_data, :res_nonce, conn_uuid, message_id, nonce})
 
@@ -84,60 +84,52 @@ defmodule TCPServer.DataHandler do
 
               GenServer.call(
                 TCPServer,
-                {:send_data, :error, conn_uuid, message_id, :failed_to_parse_message}
+                {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
               )
 
               exit(:failed_to_parse_message)
           end
 
-        case message_data do
-          %{sender_id_hash: sender_id_hash, receiver_id_hash: _receiver_id_hash} ->
-            if sender_id_hash == id_hash do
-              %{
-                sender_id_hash: sender_id_hash,
-                receiver_id_hash: receiver_id_hash,
-                tag: tag,
-                hash: hash,
-                public_key: public_key,
-                message: message
-              } = message_data
-
-              message_uuid =
-                DbManager.Message.receive(
-                  sender_id_hash,
-                  receiver_id_hash,
-                  tag,
-                  hash,
-                  public_key,
-                  message
-                )
-
-              case GenServer.call(TCPServer, {:get_connection_id_hash, receiver_id_hash}) do
-                nil ->
-                  nil
-
-                receiver_id_hash ->
-                  GenServer.call(
-                    TCPServer,
-                    {:send_data, :res_messages, receiver_id_hash, message_id, message_bin}
-                  )
-              end
-
-              GenServer.call(
-                TCPServer,
-                {:send_data, :message, conn_uuid, message_id, message_uuid}
-              )
-            else
-              GenServer.call(
-                TCPServer,
-                {:send_data, :error, conn_uuid, message_id, :invalid_message_sender}
-              )
-            end
-
-          _ ->
+        cond do
+          not DbManager.Message.validate(message_data) ->
             GenServer.call(
               TCPServer,
               {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
+            )
+
+          not DbManager.User.exists(message_data.receiver_id_hash) ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :error, conn_uuid, message_id, :invalid_message_receiver}
+            )
+
+          message_data.sender_id_hash !== id_hash ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :error, conn_uuid, message_id, :invalid_message_sender}
+            )
+
+          true ->
+            message_uuid =
+              DbManager.Message.receive(message_data)
+
+            case GenServer.call(
+                   TCPServer,
+                   {:get_connection_id_hash, message_data.receiver_id_hash}
+                 ) do
+              nil ->
+                nil
+
+              receiver_id_hash ->
+                GenServer.call(
+                  TCPServer,
+                  {:send_data, :res_messages, receiver_id_hash, message_id, message_bin}
+                )
+            end
+
+            GenServer.call(
+              TCPServer,
+              {:send_data, :message, conn_uuid, message_id, message_uuid}
             )
         end
 
@@ -145,7 +137,7 @@ defmodule TCPServer.DataHandler do
         nil
 
       {:req_pub_key, {_id_hash, req_id_hash}} ->
-        case DbManager.User.get_user_pub_key(req_id_hash) do
+        case DbManager.User.pub_key(req_id_hash) do
           {:ok, public_key} ->
             GenServer.call(
               TCPServer,

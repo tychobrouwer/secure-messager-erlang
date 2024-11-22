@@ -66,39 +66,45 @@ defmodule DbManager.User do
   def login(id_hash, password_with_nonce) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get_by(user_id: user_id) do
+    case User |> Repo.get(user_id) do
       nil ->
         {:error, :login_failed}
 
       user ->
-        result = verify_user_pass(user.password_hash, user.nonce, password_with_nonce)
+        verify = verify_user_pass(user.password_hash, user.nonce, password_with_nonce)
+        token = if verify, do: :crypto.strong_rand_bytes(32), else: nil
 
-        if result do
-          token = :crypto.strong_rand_bytes(32)
-
-          case transaction_wrapper(fn ->
-                 User.changeset(user, %{token: token, nonce: nil})
-                 |> Repo.update()
-               end) do
-            {:ok, _} -> {:ok, token}
-            {:error, _} -> {:error, :internal_error}
-          end
-        else
-          case transaction_wrapper(fn ->
-                 User.changeset(user, %{nonce: nil})
-                 |> Repo.update()
-               end) do
-            {:ok, _} -> {:error, :login_failed}
-            {:error, _} -> {:error, :internal_error}
-          end
-        end
+        update_token(user, token)
     end
   end
 
-  def get_user_pub_key(id_hash) do
+  def exists(id_hash) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get_by(user_id: user_id) do
+    case User |> Repo.get(user_id) do
+      nil -> false
+      _ -> true
+    end
+  end
+
+  def update_token(user, token) do
+    case {
+      transaction_wrapper(fn ->
+        User.changeset(user, %{token: token, nonce: nil})
+        |> Repo.update()
+      end),
+      token
+    } do
+      {{:ok, _}, nil} -> {:error, :login_failed}
+      {{:ok, _}, token} -> {:ok, token}
+      {{:error, _}, _} -> {:error, :internal_error}
+    end
+  end
+
+  def pub_key(id_hash) do
+    {:ok, user_id} = Ecto.UUID.cast(id_hash)
+
+    case User |> Repo.get(user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -107,10 +113,10 @@ defmodule DbManager.User do
     end
   end
 
-  def get_nonce(id_hash) do
+  def nonce(id_hash) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get_by(user_id: user_id) do
+    case User |> Repo.get(user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -130,7 +136,7 @@ defmodule DbManager.User do
   def verify_token(id_hash, token) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get_by(user_id: user_id) do
+    case User |> Repo.get(user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -140,22 +146,6 @@ defmodule DbManager.User do
         else
           {:ok, false}
         end
-    end
-  end
-
-  defp transaction_wrapper(fun) do
-    case Repo.transaction(fn ->
-           with {:ok, result} <- fun.() do
-             {:ok, result}
-           else
-             {:error, changeset} ->
-               Repo.rollback(changeset)
-
-               {:error, :failed_transaction}
-           end
-         end) do
-      {_, result} ->
-        result
     end
   end
 
@@ -179,5 +169,21 @@ defmodule DbManager.User do
     length = if length > 0 and length <= block_size, do: length, else: 0
 
     :binary.part(data, 0, byte_size(data) - length)
+  end
+
+  defp transaction_wrapper(fun) do
+    case Repo.transaction(fn ->
+           with {:ok, result} <- fun.() do
+             {:ok, result}
+           else
+             {:error, changeset} ->
+               Repo.rollback(changeset)
+
+               {:error, :failed_transaction}
+           end
+         end) do
+      {_, result} ->
+        result
+    end
   end
 end
