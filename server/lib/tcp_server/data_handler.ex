@@ -121,9 +121,12 @@ defmodule TCPServer.DataHandler do
                 nil
 
               receiver_id_hash ->
+                message_array = Array.new(message_data)
+                message_array_bin = :erlang.term_to_binary(message_array)
+
                 GenServer.call(
                   TCPServer,
-                  {:send_data, :res_messages, receiver_id_hash, message_id, message_bin}
+                  {:send_data, :res_messages, receiver_id_hash, message_id, message_array_bin}
                 )
             end
 
@@ -133,8 +136,19 @@ defmodule TCPServer.DataHandler do
             )
         end
 
-      {:req_messages, {_id_hash, _data}} ->
-        nil
+      {:req_messages, {id_hash, last_us_timestamp}} ->
+        case DbManage.Message.get_messages(id_hash, nil, last_us_timestamp) do
+          {:ok, messages} ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :res_messages, conn_uuid, message_id, messages}
+            )
+          {:error, reason} ->
+            GenServer.call(
+              TCPServer,
+              {:send_data, :error, conn_uuid, message_id, reason}
+            )
+        end
 
       {:req_pub_key, {_id_hash, req_id_hash}} ->
         case DbManager.User.pub_key(req_id_hash) do
