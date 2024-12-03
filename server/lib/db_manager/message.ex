@@ -76,8 +76,7 @@ defmodule DbManager.Message do
     end
   end
 
-  def get_messages(receiver_id_hash, sender_id_hash, last_us_timestamp \\ 0)
-      when is_nil(sender_id_hash) do
+  def get_messages(receiver_id_hash, nil, last_us_timestamp) do
     {:ok, receiver_id} = Ecto.UUID.cast(receiver_id_hash)
 
     Repo.all(
@@ -89,7 +88,7 @@ defmodule DbManager.Message do
     )
   end
 
-  def get_messages(receiver_id_hash, sender_id_hash, last_us_timestamp \\ 0) do
+  def get_messages(receiver_id_hash, sender_id_hash, last_us_timestamp) do
     {:ok, receiver_id} = Ecto.UUID.cast(receiver_id_hash)
     {:ok, sender_id} = Ecto.UUID.cast(sender_id_hash)
 
