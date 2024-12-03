@@ -9,7 +9,7 @@ defmodule DbManager.Repo.Migrations.CreateUsers do
       add(:nonce, :binary)
       add(:token, :binary)
 
-      timestamps()
+      add(:inserted_at, :integer, null: false)
     end
 
     create(unique_index(:users, [:user_id]))

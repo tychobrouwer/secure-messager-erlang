@@ -18,7 +18,7 @@ defmodule DbManager.User do
     field(:nonce, :binary)
     field(:token, :binary)
 
-    timestamps()
+    field(:inserted_at, :integer)
 
     has_many(:send_messages, Message, foreign_key: :sender_id, references: :user_id)
     has_many(:received_messages, Message, foreign_key: :receiver_id, references: :user_id)
@@ -32,6 +32,7 @@ defmodule DbManager.User do
     )
     |> Changeset.validate_required([:user_id, :public_key, :password_hash])
     |> Changeset.unique_constraint(:user_id)
+    |> Changeset.put_change(:inserted_at, :os.system_time(:microsecond))
   end
 
   def signup(id_hash, public_key, password) do

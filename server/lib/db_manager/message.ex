@@ -20,7 +20,7 @@ defmodule DbManager.Message do
     field(:public_key, :binary)
     field(:message, :binary)
 
-    timestamps()
+    field(:inserted_at, :integer)
 
     belongs_to(:sender, User, foreign_key: :sender_id, references: :user_id)
     belongs_to(:reciever, User, foreign_key: :receiver_id, references: :user_id)
@@ -40,6 +40,7 @@ defmodule DbManager.Message do
       :sender_id,
       :receiver_id
     ])
+    |> Changeset.put_change(:inserted_at, :os.system_time(:microsecond))
   end
 
   def receive(message_data) do
@@ -81,7 +82,9 @@ defmodule DbManager.Message do
 
     Repo.all(
       Query.from(m in Message,
-        where: m.receiver_id == ^receiver_id and m.inserted_at.microsecond > ^last_us_timestamp
+        where:
+          m.receiver_id == ^receiver_id and
+            m.inserted_at > ^last_us_timestamp
       )
     )
   end
@@ -94,7 +97,7 @@ defmodule DbManager.Message do
       Query.from(m in Message,
         where:
           m.receiver_id == ^receiver_id and m.sender_id == ^sender_id and
-            m.inserted_at.microsecond > ^last_us_timestamp
+            m.inserted_at > ^last_us_timestamp
       )
     )
   end
