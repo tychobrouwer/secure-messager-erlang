@@ -35,10 +35,29 @@ defmodule Client.Message do
     end
   end
 
-  def receive(message) do
-    messages_data = :erlang.binary_to_term(message, [:safe])
+  def request_new() do
+    message_id = GenServer.call(TCPServer, {:get_message_id})
 
-    Enum.each(messages_data, fn(message_data) ->
+    last_update_timestamp_us = GenServer.call(ContactManager, {:last_update_timestamp})
+    data = :erlang.integer_to_binary(last_update_timestamp_us)
+
+    case TCPServer.send_receive_data(:req_messages, message_id, data) do
+      {:error, reason} ->
+        Logger.error("Failed to request new messages")
+
+        exit("Failed to request new messages")
+
+      messages ->
+        Logger.notice("Messages received from #{inspect(receiver_id_hash)}")
+
+        receive_array(messages)
+    end
+  end
+
+  def receive_array(messages) do
+    messages_data = :erlang.binary_to_term(messages, [:safe])
+
+    Enum.each(messages_data, fn message_data ->
       contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_id_hash})
 
       if contact == nil do

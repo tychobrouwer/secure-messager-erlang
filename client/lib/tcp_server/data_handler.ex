@@ -65,7 +65,7 @@ defmodule TCPServer.DataHandler do
 
       :res_messages ->
         Task.async(fn ->
-          Client.Message.receive(packet_data)
+          Client.Message.receive_array(packet_data)
         end)
 
       :res_pub_key ->

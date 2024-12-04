@@ -85,5 +85,3 @@ defmodule Client.Account do
     data <> :binary.copy(<<padding::size(8)>>, padding)
   end
 end
-
-# message = pkcs7_pad(message, 16)

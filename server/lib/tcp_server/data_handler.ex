@@ -136,9 +136,10 @@ defmodule TCPServer.DataHandler do
 
       {:req_messages, {id_hash, data}} ->
         {sender_id_hash, last_us_timestamp} =
-          if byte_size(data) > 16 do
-            <<sender_id_hash::binary-size(16), timestamp_bin::binary>> = data
-            {sender_id_hash, :erlang.binary_to_integer(timestamp_bin)}
+          if byte_size(data) > 20 do
+            <<sender_id_hash::binary-size(16), timestamp_us_bin::binary>> = data
+
+            {sender_id_hash, :erlang.binary_to_integer(timestamp_us_bin)}
           else
             {nil, :erlang.binary_to_integer(data)}
           end

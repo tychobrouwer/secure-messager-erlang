@@ -66,6 +66,15 @@ defmodule ContactManager do
     {:noreply, state}
   end
 
+  def handle_call({:last_update_timestamp}, _from, state) do
+    last_update_timestamp = Map.get(state, "last_update_timestamp")
+
+    current_timestamp_us = System.os_time(:microsecond)
+    new_state = Map.put(state, "last_update_timestamp", current_timestamp_us)
+
+    {:reply, last_update_timestamp, new_state}
+  end
+
   @impl true
   def handle_call({:get_contact, contact_id_hash}, _from, state)
       when verify_bin(contact_id_hash, 16) do
