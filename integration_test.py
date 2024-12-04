@@ -4,7 +4,7 @@ import time
 import asyncio
 
 NR_CLIENTS = 10
-PORT = 4000
+PORT = 4040
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
 errors = 0
@@ -132,11 +132,11 @@ class Client:
         self.process.stop()
 
 def create_server_and_clients():
-    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Starting server...")
+    # print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Starting server...")
 
-    global server
-    server = ElixirProcess(" Server ", f"cd ./server && PORT={PORT} iex -S mix run --no-halt")
-    time.sleep(1)
+    # global server
+    # server = ElixirProcess(" Server ", f"cd ./server && PORT={PORT} iex -S mix run --no-halt")
+    # time.sleep(1)
 
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Starting clients...")
 

@@ -27,9 +27,8 @@ defmodule TCPServer.DataHandler do
     } = parse_packet(packet)
 
     type = Utils.packet_bin_to_atom(type_bin)
-    packet_data = parse_packet_data(packet_data, Utils.get_packet_response_type(type))
 
-    Logger.info("Received data -> #{type} : #{inspect(packet)}")
+    packet_data = parse_packet_data(packet_data, Utils.get_packet_response_type(type))
 
     case {type, packet_data} do
       {_type, {:error, reason}} ->

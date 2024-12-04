@@ -65,13 +65,19 @@ defmodule DbManager.User do
   end
 
   def login(id_hash, password_with_nonce) do
+    Logger.notice("Login attempt for user: #{id_hash}")
+
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get(user_id) do
+    Logger.notice("Login attempt for user: #{user_id}")
+
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :login_failed}
 
       user ->
+        Logger.notice(inspect(user))
+
         verify = verify_user_pass(user.password_hash, user.nonce, password_with_nonce)
         token = if verify, do: :crypto.strong_rand_bytes(32), else: nil
 
@@ -82,7 +88,7 @@ defmodule DbManager.User do
   def exists(id_hash) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get(user_id) do
+    case User |> Repo.get_by(user_id: user_id) do
       nil -> false
       _ -> true
     end
@@ -105,7 +111,7 @@ defmodule DbManager.User do
   def pub_key(id_hash) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get(user_id) do
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :user_not_found}
 
@@ -117,11 +123,15 @@ defmodule DbManager.User do
   def nonce(id_hash) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get(user_id) do
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
+        Logger.notice("User not found")
+
         {:error, :user_not_found}
 
       user ->
+        Logger.notice("#{inspect(user)}")
+
         nonce = :crypto.strong_rand_bytes(32)
 
         case transaction_wrapper(fn ->
@@ -137,7 +147,7 @@ defmodule DbManager.User do
   def verify_token(id_hash, token) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
-    case User |> Repo.get(user_id) do
+    case User |> Repo.get_by(user_id: user_id) do
       nil ->
         {:error, :user_not_found}
 
