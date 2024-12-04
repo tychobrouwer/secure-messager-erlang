@@ -1,8 +1,4 @@
 defmodule Client.Message do
-  @moduledoc """
-
-  """
-
   require Logger
 
   @type ratchet :: Crypt.Ratchet.ratchet()
@@ -40,28 +36,30 @@ defmodule Client.Message do
   end
 
   def receive(message) do
-    message_data = :erlang.binary_to_term(message, [:safe])
+    messages_data = :erlang.binary_to_term(message, [:safe])
 
-    contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_id_hash})
+    Enum.each(messages_data, fn(message_data) ->
+      contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_id_hash})
 
-    if contact == nil do
-      Client.Contact.add_contact(message_data.sender_id_hash)
-    end
+      if contact == nil do
+        Client.Contact.add_contact(message_data.sender_id_hash)
+      end
 
-    contact =
-      GenServer.call(
-        ContactManager,
-        {:cycle_contact_receiving, message_data.sender_id_hash, message_data.public_key}
-      )
+      contact =
+        GenServer.call(
+          ContactManager,
+          {:cycle_contact_receiving, message_data.sender_id_hash, message_data.public_key}
+        )
 
-    {decrypted_message, valid} =
-      Crypt.Message.decrypt(
-        message_data.message,
-        message_data.tag,
-        message_data.hash,
-        contact.m_ratchet.child_key
-      )
+      {decrypted_message, valid} =
+        Crypt.Message.decrypt(
+          message_data.message,
+          message_data.tag,
+          message_data.hash,
+          contact.m_ratchet.child_key
+        )
 
-    Logger.notice("Decrypted message -> #{valid} : #{decrypted_message}")
+      Logger.notice("Decrypted message -> #{valid} : #{decrypted_message}")
+    end)
   end
 end
