@@ -144,7 +144,7 @@ defmodule TCPServer.DataHandler do
             {nil, :erlang.binary_to_integer(data)}
           end
 
-        case DbManage.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp) do
+        case DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp) do
           {:ok, messages} ->
             GenServer.call(
               TCPServer,
