@@ -9,7 +9,7 @@ defmodule DbManager.Repo.Migrations.CreateMessages do
       add(:public_key, :binary, null: false)
       add(:message, :binary, null: false)
 
-      add(:inserted_at, :integer, null: false)
+      add(:inserted_at, :bigint, null: false)
     end
   end
 end
