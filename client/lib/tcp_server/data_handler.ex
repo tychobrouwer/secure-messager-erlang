@@ -57,6 +57,12 @@ defmodule TCPServer.DataHandler do
           pid -> send(pid, {:req_response, packet_data})
         end
 
+      :res_logout ->
+        case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
+          nil -> nil
+          pid -> send(pid, {:req_response, packet_data})
+        end
+
       :res_nonce ->
         case GenServer.call(TCPServer, {:get_receive_pid, message_id}) do
           nil -> nil

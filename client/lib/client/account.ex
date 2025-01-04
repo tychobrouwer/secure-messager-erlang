@@ -40,10 +40,10 @@ defmodule Client.Account do
         Logger.error("Login failed with user id: #{user_id}, reason: #{reason}")
 
       token ->
-        GenServer.cast(TCPServer, {:set_auth_token, token})
-        GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
+        GenServer.cast(TCPServer, {:set_auth, token, user_id_hash})
 
         Logger.notice("Login successful with user id: #{user_id}")
+        Client.Message.request_new()
 
         token
     end
@@ -69,13 +69,21 @@ defmodule Client.Account do
         Logger.error("Signup failed with user id: #{user_id}, reason: #{reason}")
 
       token ->
-        GenServer.cast(TCPServer, {:set_auth_token, token})
-        GenServer.cast(TCPServer, {:set_auth_id, user_id_hash})
+        GenServer.cast(TCPServer, {:set_auth, token, user_id_hash})
 
         Logger.notice("Signup successful with user id: #{user_id}")
 
         token
     end
+  end
+
+  def logout() do
+    message_id = GenServer.call(TCPServer, {:get_message_id})
+
+    TCPServer.send_receive_data(:req_logout, message_id, <<0>>)
+    GenServer.cast(TCPServer, {:logout})
+
+    Logger.notice("Logout successful")
   end
 
   defp pkcs7_pad(data, block_size) do

@@ -60,19 +60,26 @@ defmodule ContactManager do
   end
 
   @impl true
-  def handle_cast(request, _from, state) do
+  def handle_cast(request, state) do
     Logger.error("Unknown cast request contact_manager -> #{inspect(request)}")
 
     {:noreply, state}
   end
 
+  @impl true
   def handle_call({:last_update_timestamp}, _from, state) do
     last_update_timestamp = Map.get(state, "last_update_timestamp")
 
     current_timestamp_us = System.os_time(:microsecond)
     new_state = Map.put(state, "last_update_timestamp", current_timestamp_us)
 
-    {:reply, last_update_timestamp, new_state}
+    case last_update_timestamp do
+      nil ->
+        {:reply, 0, new_state}
+
+      _ ->
+        {:reply, last_update_timestamp, new_state}
+    end
   end
 
   @impl true
@@ -87,6 +94,12 @@ defmodule ContactManager do
   def handle_call({:cycle_contact_sending, contact_id_hash}, _from, state)
       when verify_bin(contact_id_hash, 16) do
     contact = Map.get(state, contact_id_hash)
+
+    if contact == nil do
+      Logger.error("Contact not found")
+
+      exit("Dont call cycle contact sending if contact not found")
+    end
 
     keypair =
       if contact.state != nil && contact.state != :sending do

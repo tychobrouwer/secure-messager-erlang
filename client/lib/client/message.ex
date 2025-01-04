@@ -17,7 +17,8 @@ defmodule Client.Message do
       tag: message_tag,
       hash: mac_hash,
       public_key: contact.keypair.public,
-      message: encrypted_message
+      message: encrypted_message,
+      send_at: :os.system_time(:microsecond)
     }
 
     message_id = GenServer.call(TCPServer, {:get_message_id})
@@ -41,26 +42,15 @@ defmodule Client.Message do
     last_update_timestamp_us = GenServer.call(ContactManager, {:last_update_timestamp})
     data = :erlang.integer_to_binary(last_update_timestamp_us)
 
-    case TCPServer.send_receive_data(:req_messages, message_id, data) do
-      {:error, reason} ->
-        Logger.error("Failed to request new messages")
-
-        exit("Failed to request new messages")
-
-      messages ->
-        Logger.notice("Messages received from #{inspect(receiver_id_hash)}")
-
-        receive_array(messages)
-    end
+    GenServer.cast(TCPServer, {:send_data, :req_messages, message_id, data})
   end
 
   def receive_array(messages) do
-    messages_data = :erlang.binary_to_term(messages, [:safe])
+    messages_data = :erlang.binary_to_term(messages)
+    messages_data = Enum.sort(messages_data, fn a, b -> a.send_at < b.send_at end)
 
     Enum.each(messages_data, fn message_data ->
-      contact = GenServer.call(ContactManager, {:get_contact, message_data.sender_id_hash})
-
-      if contact == nil do
+      if GenServer.call(ContactManager, {:get_contact, message_data.sender_id_hash}) == nil do
         Client.Contact.add_contact(message_data.sender_id_hash)
       end
 

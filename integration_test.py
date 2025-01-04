@@ -3,7 +3,7 @@ import threading
 import time
 import asyncio
 
-NR_CLIENTS = 100
+NR_CLIENTS = 10
 PORT = 4040
 TEST_MESSAGE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed varius metus ut nisl varius tempus. Nullam at cursus nisl. Etiam sit amet neque sem. Quisque ipsum arcu, mollis non leo eu, varius eleifend elit. Morbi quis pretium massa. Curabitur posuere ex enim, eget tincidunt mi commodo nec. Cras non ornare diam. Pellentesque lobortis est augue, ut tincidunt tortor aliquam id. Suspendisse libero ante, sollicitudin id aliquam quis, placerat vel nisl. Vivamus suscipit feugiat pellentesque. Cras rutrum orci non facilisis ultrices."
 
@@ -114,6 +114,10 @@ class Client:
         # token = Client.Account.signup(user_id, user_password)
         self.process.send_input(f"token = Client.Account.signup(\"{self.user_id}\", \"password\")")
 
+    def logout(self):
+        # token = Client.Account.logout()
+        self.process.send_input(f"Client.Account.logout()")
+
     def add_contact(self, user_id):
         if user_id == self.user_id:
             return
@@ -148,8 +152,8 @@ def create_server_and_clients():
     print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Logging in...")
 
     for i in range(NR_CLIENTS):
-        clients[i].login()
-        # clients[i].signup()
+        # clients[i].login()
+        clients[i].signup()
 
     input("")
 
@@ -220,18 +224,72 @@ def run_elixir_test_3():
     for j in range(NR_CLIENTS):
         clients[i].send_message(f"user{j}")
 
-if __name__ == "__main__":
-    create_server_and_clients()
-    run_elixir_test_1()
-    destroy_server_and_clients()
+def run_elixir_test_4():
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Logging out clients who are not sending messages...")
+    
+    for j in range(1, NR_CLIENTS):
+        if j % 2 == 1:
+            clients[j].logout()
 
     input("")
-    
-    create_server_and_clients()
-    run_elixir_test_2()
-    destroy_server_and_clients()
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Adding contacts...")
+
+    # Logged in clients are i % 2 == 0 and logged out clients are j % 2 == 1
+    for j in range(NR_CLIENTS):
+        for i in range(NR_CLIENTS):
+            if j % 2 == 1 and i % 2 == 0:
+                clients[i].add_contact(f"user{j}")
+
     input("")
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Sending messages to clients logged out...")
+
+    # Logged in clients are i % 2 == 0 and logged out clients are j % 2 == 1
+    for j in range(NR_CLIENTS):
+        for i in range(1, NR_CLIENTS):
+            if j % 2 == 1 and i % 2 == 0:
+                clients[i].send_message(f"user{j}")
+                clients[i].send_message(f"user{j}")
+
+    input("")
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Logging clients back in...")
+
+    for j in range(1, NR_CLIENTS):
+        if j % 2 == 1:
+            clients[j].login()
+
+    input("")
+
+    print(f"{bcolors.OKGREEN}[Process ]{bcolors.ENDC} Sending messages to clients logged in...")
+
+    # Logged in clients are i % 2 == 0 and logged out clients are j % 2 == 1
+    for j in range(NR_CLIENTS):
+        for i in range(1, NR_CLIENTS):
+            if j % 2 == 1 and i % 2 == 0:
+                clients[j].send_message(f"user{i}")
+                clients[j].send_message(f"user{i}")
+
+
+# cd server && mix ecto.drop && mix ecto.create && mix ecto.migrate && cd .. && python3 ./integration_test.py
+if __name__ == "__main__":
+    # create_server_and_clients()
+    # run_elixir_test_1()
+    # destroy_server_and_clients()
+
+    # input("")
+    
+    # create_server_and_clients()
+    # run_elixir_test_2()
+    # destroy_server_and_clients()
+    # input("")
+    
+    # create_server_and_clients()
+    # run_elixir_test_3()
+    # destroy_server_and_clients()
+    # input("")
     
     create_server_and_clients()
-    run_elixir_test_3()
+    run_elixir_test_4()
     destroy_server_and_clients()

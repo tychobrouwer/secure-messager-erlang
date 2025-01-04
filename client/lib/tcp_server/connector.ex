@@ -35,6 +35,8 @@ defmodule TCPServer.Connector do
         Logger.notice("Connection closed")
         GenServer.cast(TCPServer, {:remove_connection})
 
+        Client.Account.logout()
+
         exit(:disconnect)
 
       {:tcp_error, ^socket, reason} ->
@@ -43,9 +45,17 @@ defmodule TCPServer.Connector do
 
         exit(:error)
 
+      {:disconnect} ->
+        :gen_tcp.close(socket)
+
       {:send_data, type, message_id, message, :with_auth} ->
         token = GenServer.call(TCPServer, {:get_auth_token})
         id = GenServer.call(TCPServer, {:get_auth_id})
+
+        if token == nil or id == nil do
+          Logger.error("User not authenticated")
+          exit(:user_not_authenticated)
+        end
 
         message = id <> token <> message
 
