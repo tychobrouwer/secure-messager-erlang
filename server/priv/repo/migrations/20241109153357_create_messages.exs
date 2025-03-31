@@ -10,6 +10,8 @@ defmodule DbManager.Repo.Migrations.CreateMessages do
       add(:message, :binary, null: false)
 
       add(:inserted_at, :bigint, null: false)
+      add(:send_at, :bigint, null: false)
+      add(:received_at, :bigint, null: true)
     end
   end
 end

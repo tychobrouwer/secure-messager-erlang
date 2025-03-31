@@ -75,6 +75,10 @@ defmodule TCPServer.DataHandler do
             GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
         end
 
+      {:req_logout, {_id_hash, _data}} ->
+        GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil})
+        GenServer.call(TCPServer, {:send_data, :res_logout, conn_uuid, message_id, <<0>>})
+
       {:message, {id_hash, message_bin}} ->
         message_data =
           try do
@@ -146,19 +150,15 @@ defmodule TCPServer.DataHandler do
             {nil, :erlang.binary_to_integer(data)}
           end
 
-        case DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp) do
-          {:ok, messages} ->
-            GenServer.call(
-              TCPServer,
-              {:send_data, :res_messages, conn_uuid, message_id, messages}
-            )
+        messages =
+          DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp)
 
-          {:error, reason} ->
-            GenServer.call(
-              TCPServer,
-              {:send_data, :error, conn_uuid, message_id, reason}
-            )
-        end
+        messages_bin = :erlang.term_to_binary(messages)
+
+        GenServer.call(
+          TCPServer,
+          {:send_data, :res_messages, conn_uuid, message_id, messages_bin}
+        )
 
       {:req_pub_key, {_id_hash, req_id_hash}} ->
         case DbManager.User.pub_key(req_id_hash) do

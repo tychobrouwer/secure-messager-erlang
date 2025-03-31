@@ -53,17 +53,32 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_cast({:set_auth_token, token}, state) when verify_bin(token, 32) do
-    {:noreply, Map.put(state, :auth_token, token)}
+  def handle_cast({:set_auth, token, id}, state)
+      when verify_bin(token, 32) and verify_bin(id, 16) do
+    new_state = Map.put(state, :auth_token, token)
+    new_state = Map.put(new_state, :auth_id, id)
+    {:noreply, new_state}
   end
 
   @impl true
-  def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 16) do
-    {:noreply, Map.put(state, :auth_id, id)}
+  def handle_cast({:logout}, state) do
+    new_state = Map.put(state, :auth_token, nil)
+    new_state = Map.put(new_state, :auth_id, nil)
+    {:noreply, new_state}
   end
 
+  # @impl true
+  # def handle_cast({:set_auth_token, token}, state) when verify_bin(token, 32) do
+  #   {:noreply, Map.put(state, :auth_token, token)}
+  # end
+
+  # @impl true
+  # def handle_cast({:set_auth_id, id}, state) when verify_bin(id, 16) do
+  #   {:noreply, Map.put(state, :auth_id, id)}
+  # end
+
   @impl true
-  def handle_cast(request, _from, state) do
+  def handle_cast(request, state) do
     Logger.error("Unknown cast request tcp_server -> #{inspect(request)}")
 
     {:noreply, state}
