@@ -28,6 +28,8 @@ defmodule TCPServer.DataHandler do
 
     type = Utils.packet_bin_to_atom(type_bin)
 
+    Logger.info("Received data -> #{type} : #{inspect(packet_data)}")
+
     packet_data = parse_packet_data(packet_data, Utils.get_packet_response_type(type))
 
     case {type, packet_data} do

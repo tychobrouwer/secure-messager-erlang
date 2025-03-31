@@ -34,7 +34,7 @@ defmodule TCPServer.Acceptor do
     {:ok, pid} =
       Task.Supervisor.start_child(TCPServer.TaskSupervisor, fn ->
         message_id = :crypto.hash(:md4, <<0>>)
-        DataHandler.send_data(client, :handshake, conn_uuid, message_id, conn_uuid)
+        DataHandler.send_data(client, :handshake, message_id, conn_uuid)
 
         loop_serve(client, conn_uuid)
       end)
