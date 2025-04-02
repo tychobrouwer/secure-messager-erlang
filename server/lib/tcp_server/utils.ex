@@ -9,8 +9,8 @@ defmodule TCPServer.Utils do
           | :res_signup
           | :req_logout
           | :res_logout
-          | :req_nonce
-          | :res_nonce
+          | :req_key
+          | :res_key
           | :message
           | :req_messages
           | :res_messages
@@ -24,7 +24,7 @@ defmodule TCPServer.Utils do
 
   def get_packet_response_type(packet_type) do
     case packet_type do
-      type when type == :ack or type == :error or type == :req_nonce ->
+      type when type == :ack or type == :error or type == :req_key ->
         :plain
 
       type when type == :req_login or type == :req_signup ->
@@ -46,8 +46,8 @@ defmodule TCPServer.Utils do
       :res_signup -> 6
       :req_logout -> 7
       :res_logout -> 8
-      :req_nonce -> 9
-      :res_nonce -> 10
+      :req_key -> 9
+      :res_key -> 10
       :message -> 11
       :req_messages -> 12
       :res_messages -> 13
@@ -68,8 +68,8 @@ defmodule TCPServer.Utils do
       <<6>> -> :res_signup
       <<7>> -> :req_logout
       <<8>> -> :res_logout
-      <<9>> -> :req_nonce
-      <<10>> -> :res_nonce
+      <<9>> -> :req_key
+      <<10>> -> :res_key
       <<11>> -> :message
       <<12>> -> :req_messages
       <<13>> -> :res_messages

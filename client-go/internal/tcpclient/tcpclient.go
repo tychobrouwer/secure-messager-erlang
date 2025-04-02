@@ -19,8 +19,10 @@ const (
 	ResLogin
 	ReqSignup
 	ResSignup
-	ReqNonce
-	ResNonce
+	ReqLogout
+	ResLogout
+	ReqKey
+	ResKey
 	Message
 	ReqMessages
 	ResMessages
@@ -40,9 +42,7 @@ type Packet struct {
 }
 
 func (p Packet) Bytes(s *TCPServer) []byte {
-	fmt.Println("Packet", p)
-
-	if p.messageType == ReqNonce || p.messageType == ReqLogin || p.messageType == ReqSignup {
+	if p.messageType == ReqKey || p.messageType == ReqLogin || p.messageType == ReqSignup {
 		message := append([]byte{}, byte(p.version))
 		message = append(message, byte(p.messageType))
 		message = append(message, p.messageID[:]...)
@@ -98,9 +98,6 @@ func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (Packet, e
 	payload := append([]byte{}, byte(length>>24), byte(length>>16), byte(length>>8), byte(length))
 	payload = append(payload, packet.Bytes(s)...)
 
-	fmt.Println("Sending", payload)
-	fmt.Println("Sending", packet)
-
 	_, err := s.conn.Write(payload)
 	if err != nil {
 		return Packet{}, err
@@ -112,8 +109,6 @@ func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (Packet, e
 	if err != nil {
 		return Packet{}, err
 	}
-
-	fmt.Println("Received", buffer[:n])
 
 	packet, err = ParsePacket(buffer[:n])
 

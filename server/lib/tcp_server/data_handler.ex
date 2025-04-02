@@ -44,17 +44,19 @@ defmodule TCPServer.DataHandler do
       {:error, _packet_data} ->
         nil
 
-      {:req_nonce, {_id_hash, req_id_hash}} ->
-        case DbManager.User.nonce(req_id_hash) do
-          {:ok, nonce} ->
-            GenServer.call(TCPServer, {:send_data, :res_nonce, conn_uuid, message_id, nonce})
+      {:req_key, {_id_hash, req_id_hash}} ->
+        case DbManager.Key.key(req_id_hash) do
+          {:ok, key} ->
+            GenServer.call(TCPServer, {:send_data, :res_key, conn_uuid, message_id, key})
 
           {:error, reason} ->
             GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
         end
 
-      {:req_login, {id_hash, hashed_password}} ->
-        case DbManager.User.login(id_hash, hashed_password) do
+      {:req_login, {id_hash, login_data}} ->
+        <<nonce::binary-size(12), hashed_password::binary>> = login_data
+
+        case DbManager.User.login(id_hash, nonce, hashed_password) do
           {:ok, token} ->
             GenServer.cast(TCPServer, {:update_connection, conn_uuid, id_hash})
             GenServer.call(TCPServer, {:send_data, :res_login, conn_uuid, message_id, token})
@@ -64,9 +66,9 @@ defmodule TCPServer.DataHandler do
         end
 
       {:req_signup, {id_hash, signup_data}} ->
-        <<public_key::binary-size(32), hashed_password::binary-size(60)>> = signup_data
+        <<public_key::binary-size(32), nonce::binary-size(12), hashed_password::binary>> = signup_data
 
-        case DbManager.User.signup(id_hash, public_key, hashed_password) do
+        case DbManager.User.signup(id_hash, public_key, nonce, hashed_password) do
           {:ok, token} ->
             GenServer.cast(TCPServer, {:update_connection, conn_uuid, id_hash})
             GenServer.call(TCPServer, {:send_data, :res_signup, conn_uuid, message_id, token})

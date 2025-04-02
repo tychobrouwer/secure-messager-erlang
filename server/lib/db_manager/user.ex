@@ -6,6 +6,7 @@ defmodule DbManager.User do
   alias DbManager.Repo, as: Repo
   alias DbManager.User, as: User
   alias DbManager.Message, as: Message
+  alias DbManager.Key, as: Key
 
   alias Ecto.Changeset, as: Changeset
 
@@ -15,7 +16,6 @@ defmodule DbManager.User do
     field(:user_id, :binary_id)
     field(:public_key, :binary)
     field(:password_hash, :binary)
-    field(:nonce, :binary)
     field(:token, :binary)
 
     field(:inserted_at, :integer)
@@ -28,43 +28,54 @@ defmodule DbManager.User do
     user
     |> Changeset.cast(
       params,
-      [:user_id, :public_key, :password_hash, :nonce, :token]
+      [:user_id, :public_key, :password_hash, :token]
     )
     |> Changeset.validate_required([:user_id, :public_key, :password_hash])
     |> Changeset.unique_constraint(:user_id)
     |> Changeset.put_change(:inserted_at, :os.system_time(:microsecond))
   end
 
-  def signup(id_hash, public_key, password) do
+  def signup(id_hash, public_key, nonce, encrypted_pass_with_tag) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
+    case Repo.get_by(Key, user_id: user_id) do
+      nil ->
+        {:error, :login_failed}
 
-    token = :crypto.strong_rand_bytes(32)
-    password_hash = Bcrypt.hash_pwd_salt(password)
+      key_entry ->
+        length = byte_size(encrypted_pass_with_tag)
+        <<encrypted_pass::binary-size(length - 16), tag::binary-size(16)>> = encrypted_pass_with_tag
 
-    case transaction_wrapper(fn ->
-           %User{}
-           |> User.changeset(%{
-             user_id: user_id,
-             public_key: public_key,
-             password_hash: password_hash,
-             nonce: nil,
-             token: token
-           })
-           |> Repo.insert()
-         end) do
-      {:ok, _} ->
-        {:ok, token}
+        password = :crypto.crypto_one_time_aead(:aes_256_gcm, key_entry.key, nonce, encrypted_pass, "", tag, false)
 
-      error ->
-        if List.keyfind(error.errors, :user_id, 0) != nil do
-          {:error, :user_exists}
-        else
-          {:error, :internal_error}
+        Repo.delete(key_entry)
+
+        token = :crypto.strong_rand_bytes(32)
+        password_hash = Bcrypt.hash_pwd_salt(password)
+
+        case transaction_wrapper(fn ->
+              %User{}
+              |> User.changeset(%{
+                user_id: user_id,
+                public_key: public_key,
+                password_hash: password_hash,
+                token: token
+              })
+              |> Repo.insert()
+            end) do
+          {:ok, _} ->
+            {:ok, token}
+
+          error ->
+            if List.keyfind(error.errors, :user_id, 0) != nil do
+              {:error, :user_exists}
+            else
+              {:error, :internal_error}
+            end
         end
     end
   end
 
-  def login(id_hash, password_with_nonce) do
+  def login(id_hash, nonce, encrypted_pass) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
     case User |> Repo.get_by(user_id: user_id) do
@@ -72,10 +83,19 @@ defmodule DbManager.User do
         {:error, :login_failed}
 
       user ->
-        verify = verify_user_pass(user.password_hash, user.nonce, password_with_nonce)
-        token = if verify, do: :crypto.strong_rand_bytes(32), else: nil
+        case Repo.get_by(Key, user_id: user_id) do
+          nil ->
+            {:error, :login_failed}
 
-        update_token(user, token)
+          key_entry ->
+
+            verify = verify_user_pass(user.password_hash, key_entry.key, nonce, encrypted_pass)
+            token = if verify, do: :crypto.strong_rand_bytes(32), else: nil
+
+            Repo.delete(key_entry)
+
+            update_token(user, token)
+        end
     end
   end
 
@@ -91,7 +111,7 @@ defmodule DbManager.User do
   def update_token(user, token) do
     case {
       transaction_wrapper(fn ->
-        User.changeset(user, %{token: token, nonce: nil})
+        User.changeset(user, %{token: token})
         |> Repo.update()
       end),
       token
@@ -114,26 +134,6 @@ defmodule DbManager.User do
     end
   end
 
-  def nonce(id_hash) do
-    {:ok, user_id} = Ecto.UUID.cast(id_hash)
-
-    case User |> Repo.get_by(user_id: user_id) do
-      nil ->
-        {:error, :user_not_found}
-
-      user ->
-        nonce = :crypto.strong_rand_bytes(32)
-
-        case transaction_wrapper(fn ->
-               User.changeset(user, %{nonce: nonce})
-               |> Repo.update()
-             end) do
-          {:ok, _} -> {:ok, nonce}
-          {:error, _} -> {:error, :internal_error}
-        end
-    end
-  end
-
   def verify_token(id_hash, token) do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
@@ -150,26 +150,21 @@ defmodule DbManager.User do
     end
   end
 
-  defp verify_user_pass(password, nonce, pass_with_nonce)
-       when is_nil(password) or is_nil(nonce) or is_nil(pass_with_nonce) do
+  defp verify_user_pass(password, key, nonce, encrypted_pass_with_tag)
+       when is_nil(password) or is_nil(key) or is_nil(nonce) or is_nil(encrypted_pass_with_tag) do
     false
   end
 
-  defp verify_user_pass(password_hash, nonce, pass_with_nonce) do
-    pass = :crypto.crypto_one_time(:aes_256_ecb, nonce, pass_with_nonce, false)
-    pass = pkcs7_unpad(pass, 16)
+  defp verify_user_pass(password_hash, key, nonce, encrypted_pass_with_tag) do
+    length = byte_size(encrypted_pass_with_tag)
+    <<encrypted_pass::binary-size(length - 16), tag::binary-size(16)>> = encrypted_pass_with_tag
+
+    pass = :crypto.crypto_one_time_aead(:aes_256_gcm, key, nonce, encrypted_pass, "", tag, false)
 
     case Bcrypt.verify_pass(pass, password_hash) do
       true -> true
       _ -> false
     end
-  end
-
-  defp pkcs7_unpad(data, block_size) do
-    length = :binary.last(data)
-    length = if length > 0 and length <= block_size, do: length, else: 0
-
-    :binary.part(data, 0, byte_size(data) - length)
   end
 
   defp transaction_wrapper(fun) do

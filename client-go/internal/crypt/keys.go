@@ -1,4 +1,4 @@
-package keys
+package crypt
 
 import (
 	"crypto/rand"
@@ -13,7 +13,7 @@ type KeyPair struct {
 	PrivateKey []byte
 }
 
-func GenerateKeypair() (KeyPair, error) {
+func GenerateKeyPair() (KeyPair, error) {
 	priv := make([]byte, 32)
 	if _, err := rand.Read(priv); err != nil {
 		log.Fatalf("Failed to generate private key: %v", err)

@@ -17,7 +17,9 @@ func main() {
 	}
 
 	s := tcpclient.NewTCPServer("127.0.0.1", 4040)
-	c := client.NewClient(string(username), "password", s)
+	c := client.NewClient(username, []byte("password"), s)
+
+	time.Sleep(1 * time.Second)
 
 	fmt.Println("Signing up...")
 
@@ -28,7 +30,7 @@ func main() {
 		fmt.Println("Signup successful.")
 	}
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	fmt.Println("Logging in...")
 
@@ -39,4 +41,6 @@ func main() {
 
 		fmt.Println("Login successful.")
 	}
+
+	time.Sleep(1 * time.Second)
 }

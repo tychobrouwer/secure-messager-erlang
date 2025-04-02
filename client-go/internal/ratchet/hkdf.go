@@ -1,4 +1,4 @@
-package hkdf
+package ratchet
 
 import (
 	"crypto/hmac"
