@@ -1,18 +1,38 @@
 package client
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
+	"fmt"
 
 	"client-go/internal/crypt"
+	"client-go/internal/message"
+	"client-go/internal/ratchet"
 	"client-go/internal/tcpclient"
 )
+
+type Contact struct {
+	UserID    []byte
+	DHRatchet ratchet.DHRatchet
+}
 
 type Client struct {
 	UserID    []byte
 	Password  []byte
 	TCPServer *tcpclient.TCPServer
 	KeyPair   crypt.KeyPair
+	contacts  []Contact
+}
+
+func getContactByID(contacts []Contact, contactID []byte) *Contact {
+	for i := range contacts {
+		if bytes.Equal(contacts[i].UserID, contactID) {
+			return &contacts[i]
+		}
+	}
+
+	return nil
 }
 
 func NewClient(userID, password []byte, server *tcpclient.TCPServer) *Client {
@@ -20,6 +40,7 @@ func NewClient(userID, password []byte, server *tcpclient.TCPServer) *Client {
 		UserID:    userID,
 		Password:  password,
 		TCPServer: server,
+		contacts:  []Contact{},
 	}
 }
 
@@ -107,12 +128,46 @@ func (c *Client) Signup() error {
 	return nil
 }
 
-func (c *Client) AddContact(contactID string) error {
-	// Implement add contact functionality
+func (c *Client) SendMessage(contactID, plainMessage string) error {
+	contact := getContactByID(c.contacts, []byte(contactID))
+	if contact == nil {
+		return fmt.Errorf("contact not found")
+	}
+
+	message := message.NewPlainMessage([]byte(plainMessage))
+	message.Encrypt(contact.DHRatchet)
+
+	contactIDHash := md5.Sum([]byte(contactID))
+
+	payload := append(contactIDHash[:], message.GetPayload()...)
+
+	_, err := c.TCPServer.SendReceive(tcpclient.Message, payload)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (c *Client) SendMessage(contactID, message string) error {
-	// Implement send message functionality
+func (c *Client) ReceiveMessage() error {
+	// Implement receive message functionality
+	return nil
+}
+
+func (c *Client) AddContact(contactID []byte) error {
+	contactIDHash := md5.Sum([]byte(contactID))
+
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash[:])
+	if err != nil {
+		return err
+	}
+
+	contact := Contact{
+		UserID:    contactIDHash[:],
+		DHRatchet: ratchet.NewDHRatchet(c.KeyPair, response.Data),
+	}
+
+	c.contacts = append(c.contacts, contact)
+
 	return nil
 }

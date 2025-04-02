@@ -1,43 +1,110 @@
 package message
 
 import (
+	"client-go/internal/crypt"
 	"client-go/internal/ratchet"
-	"fmt"
+	"log"
 )
 
 type Message struct {
 	encryptedMessage []byte
+	plainMessage     []byte
 	hash             []byte
 	publicKey        []byte
+	idx              int
 }
 
-func NewMessage(encryptedMessage, hash, publicKey []byte) *Message {
+func NewPlainMessage(plainMessage []byte) *Message {
+	return &Message{
+		plainMessage: plainMessage,
+	}
+}
+
+func NewEncryptedMessage(encryptedMessage, hash, publicKey []byte, idx int) *Message {
 	return &Message{
 		encryptedMessage: encryptedMessage,
 		hash:             hash,
 		publicKey:        publicKey,
+		idx:              idx,
 	}
 }
 
-func Encrypt(message []byte, key []byte) {
+func (m *Message) Encrypt(r ratchet.DHRatchet) error {
+	// if ratchet was last used for receiving
+	if r.IsReceiving() {
+		// generate new key pair
+		newKeyPair, err := crypt.GenerateKeyPair()
+		if err != nil {
+			log.Fatalf("Failed to generate key pair: %v", err)
+		}
 
-}
-
-func Decrypt(messageData Message, ratchet ratchet.DHRatchet) ([]byte, error) {
-	messageRatchet, idxMRatchet := ratchet.GetReceiveMRatchet(messageData.publicKey)
-	if messageRatchet == nil {
-		return nil, fmt.Errorf("no message ratchet found for public key")
+		// update state to sending
+		r.UpdateState(ratchet.Sending)
+		// set new key pair
+		r.UpdateKeyPair(newKeyPair)
+		// cycle root key with current public key
+		r.RKCycle(nil)
 	}
 
-	decryptedMessage, idxMessage, err := messageRatchet.Decrypt(messageData.encryptedMessage, messageData.hash)
+	// get current message ratchet
+	messageRatchet := r.GetMessageRatchet()
+	messageRatchet.CKCycle()
 
+	// encrypt message with current message ratchet
+	encryptedMessage, hash, idx, err := messageRatchet.Encrypt(m.plainMessage)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if idxMRatchet == 0 && idxMessage == 0 {
-		messageRatchet.CKCycle()
+	m.encryptedMessage = encryptedMessage
+	m.hash = hash
+	m.publicKey = r.GetPublicKey()
+	m.idx = idx
+
+	return nil
+}
+
+func (m *Message) GetPayload() []byte {
+	return append(m.publicKey, m.encryptedMessage...)
+}
+
+func (m *Message) Decrypt(r ratchet.DHRatchet) error {
+	// find previous ratchet with public key
+	messageRatchet := r.GetPrevRatchet(m.publicKey)
+
+	// if previous ratchet with public key is found
+	if messageRatchet != nil {
+		plainMessage, err := messageRatchet.Decrypt(m.encryptedMessage, m.hash, -1)
+		if err != nil {
+			return err
+		}
+
+		m.plainMessage = plainMessage
+
+		return nil
 	}
 
-	return decryptedMessage, nil
+	// else check if public key is current ratchet
+	if !r.IsCurrentRatchet(m.publicKey) {
+		// if not, generate new message ratchet
+		r.RKCycle(m.publicKey)
+	}
+
+	// get current message ratchet
+	messageRatchet = r.GetMessageRatchet()
+
+	// decrypt message with current message ratchet
+	plainMessage, err := messageRatchet.Decrypt(m.encryptedMessage, m.hash, m.idx)
+	if err != nil {
+		return err
+	}
+	m.plainMessage = plainMessage
+
+	r.UpdateState(ratchet.Receiving)
+
+	return nil
+}
+
+func (m *Message) GetPlainMessage() []byte {
+	return m.plainMessage
 }
