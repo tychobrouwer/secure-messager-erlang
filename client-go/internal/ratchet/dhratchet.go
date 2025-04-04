@@ -17,26 +17,20 @@ type DHRatchet struct {
 	keyPair          crypt.KeyPair
 	rootKey          []byte
 	childKey         []byte
-	messageRatchet   MessageRatchet
+	messageRatchet   *MessageRatchet
 	previousRatchets []MessageRatchet
 	state            RatchetState
 }
 
-func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte) DHRatchet {
+func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte) *DHRatchet {
 	rootKey, err := crypt.GenerateSharedSecret(keypair, foreignPublicKey)
 	if err != nil {
 		log.Fatalf("Failed to generate shared secret: %v", err)
 	}
 
-	messageRatchet := MessageRatchet{
-		foreignPublicKey: foreignPublicKey,
-		messageKeys:      []MessageKey{},
-	}
-
-	return DHRatchet{
+	return &DHRatchet{
 		keyPair:          keypair,
 		rootKey:          rootKey,
-		messageRatchet:   messageRatchet,
 		previousRatchets: []MessageRatchet{},
 		state:            Sending,
 	}
@@ -47,26 +41,34 @@ func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
 		foreignPublicKey = r.messageRatchet.foreignPublicKey
 	}
 
-	dhKey, err := crypt.GenerateSharedSecret(r.keyPair, foreignPublicKey)
+	// Store current ratchet before creating a new one
+	if len(r.messageRatchet.foreignPublicKey) > 0 {
+		r.previousRatchets = append(r.previousRatchets, *r.messageRatchet)
 
-	if err != nil {
-		log.Fatalf("Failed to generate shared secret: %v", err)
+		// Limit the number of stored previous ratchets (optional)
+		if len(r.previousRatchets) > 5 {
+			r.previousRatchets = r.previousRatchets[len(r.previousRatchets)-5:]
+		}
 	}
 
-	keyMaterial, err := Derive(r.rootKey, dhKey, []byte("Ratchet"), 64)
-
+	dhKey, err := crypt.GenerateSharedSecret(r.keyPair, foreignPublicKey)
 	if err != nil {
-		log.Fatalf("Failed to generate key material: %v", err)
+		log.Printf("Failed to generate shared secret: %v", err)
+		return
+	}
+
+	keyMaterial, err := derive(r.rootKey, dhKey, []byte("Ratchet"), 64)
+	if err != nil {
+		log.Printf("Failed to generate key material: %v", err)
+		return
 	}
 
 	r.rootKey = keyMaterial[:32]
 	r.childKey = keyMaterial[32:]
-	r.previousRatchets = append(r.previousRatchets, r.messageRatchet)
-	r.messageRatchet = MessageRatchet{
-		rootKey:          r.rootKey,
-		foreignPublicKey: foreignPublicKey,
-		messageKeys:      []MessageKey{},
-	}
+
+	// Create a new message ratchet with proper initialization
+	r.messageRatchet = NewMessageRatchet()
+	r.messageRatchet.Initialize(r.rootKey, foreignPublicKey)
 }
 
 func (r *DHRatchet) IsCurrentRatchet(publicKey []byte) bool {
@@ -100,5 +102,5 @@ func (r *DHRatchet) IsReceiving() bool {
 }
 
 func (r *DHRatchet) GetMessageRatchet() *MessageRatchet {
-	return &r.messageRatchet
+	return r.messageRatchet
 }

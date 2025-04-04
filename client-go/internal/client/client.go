@@ -14,7 +14,7 @@ import (
 
 type Contact struct {
 	UserID    []byte
-	DHRatchet ratchet.DHRatchet
+	DHRatchet *ratchet.DHRatchet
 }
 
 type Client struct {
@@ -77,6 +77,7 @@ func (c *Client) Login() error {
 	}
 
 	c.TCPServer.SetAuthToken(authToken)
+	c.TCPServer.SetAuthID(userIDHash)
 
 	return nil
 }
@@ -128,18 +129,18 @@ func (c *Client) Signup() error {
 	return nil
 }
 
-func (c *Client) SendMessage(contactID, plainMessage string) error {
-	contact := getContactByID(c.contacts, []byte(contactID))
+func (c *Client) SendMessage(contactID, plainMessage []byte) error {
+	contact := getContactByID(c.contacts, contactID)
 	if contact == nil {
 		return fmt.Errorf("contact not found")
 	}
 
-	message := message.NewPlainMessage([]byte(plainMessage))
+	message := message.NewPlainMessage(plainMessage)
 	message.Encrypt(contact.DHRatchet)
 
 	contactIDHash := md5.Sum([]byte(contactID))
 
-	payload := append(contactIDHash[:], message.GetPayload()...)
+	payload := append(contactIDHash[:], message.Payload()...)
 
 	_, err := c.TCPServer.SendReceive(tcpclient.Message, payload)
 	if err != nil {
@@ -149,9 +150,48 @@ func (c *Client) SendMessage(contactID, plainMessage string) error {
 	return nil
 }
 
-func (c *Client) ReceiveMessage() error {
-	// Implement receive message functionality
-	return nil
+func (c *Client) ReceiveMessage() (*message.Message, error) {
+	// Get message from server
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// No new messages
+	if len(response.Data) == 0 {
+		return nil, nil
+	}
+
+	if len(response.Data) < 16 {
+		return nil, fmt.Errorf("invalid message format")
+	}
+
+	fmt.Printf("Received message: %x\n", len(response.Data))
+
+	// Extract sender ID from the response (first 16 bytes)
+	senderID := response.Data[:16]
+	messageData := response.Data[16:]
+
+	// Find contact or return error
+	contact := getContactByID(c.contacts, senderID)
+	if contact == nil {
+		return nil, fmt.Errorf("received message from unknown contact")
+	}
+
+	// Extract header information
+	if len(messageData) < 36 { // Minimum size: 32 bytes for public key + 4 bytes for index
+		return nil, fmt.Errorf("invalid message format")
+	}
+
+	message := message.ParseMessageData(messageData)
+
+	// Decrypt message
+	err = message.Decrypt(contact.DHRatchet)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt message: %v", err)
+	}
+
+	return message, nil
 }
 
 func (c *Client) AddContact(contactID []byte) error {

@@ -9,37 +9,60 @@ import (
 	"log"
 )
 
-type MessageKey struct {
-	key   []byte
-	index int
-}
-
 type MessageRatchet struct {
-	foreignPublicKey []byte
-	rootKey          []byte
-	messageKeys      []MessageKey
+	foreignPublicKey   []byte
+	rootKey            []byte
+	chainKey           []byte         // Current chain key (for deriving the next keys)
+	skippedMessageKeys map[int][]byte // Keys for skipped messages
+	maxSkip            int            // Maximum number of message keys to store
+	previousIndex      int            // Last received message index
 }
 
-func (m *MessageRatchet) CKCycle() {
-	keyMaterial, err := Derive(m.rootKey, nil, []byte("Chain"), 64)
+func NewMessageRatchet() *MessageRatchet {
+	return &MessageRatchet{
+		skippedMessageKeys: make(map[int][]byte),
+		maxSkip:            1000, // Configurable upper limit
+		previousIndex:      -1,   // Start with -1
+	}
+}
+
+func (m *MessageRatchet) Initialize(rootKey, foreignPublicKey []byte) {
+	m.rootKey = rootKey
+	m.foreignPublicKey = foreignPublicKey
+}
+
+// Generate the next message key and advance the chain
+func (m *MessageRatchet) m_CKCycle() []byte {
+	if m.chainKey == nil {
+		// Initialize chain key from root key if not done yet
+		keyMaterial, err := derive(m.rootKey, nil, []byte("Chain"), 64)
+		if err != nil {
+			log.Printf("Failed to generate key material: %v", err)
+			return nil
+		}
+		m.chainKey = keyMaterial[32:] // Second half becomes the chain key
+		return keyMaterial[:32]       // First half becomes the message key
+	}
+
+	// Normal chain key advancement
+	keyMaterial, err := derive(m.chainKey, nil, []byte("Chain"), 64)
 	if err != nil {
-		log.Fatalf("Failed to generate key material: %v", err)
+		log.Printf("Failed to generate key material: %v", err)
+		return nil
 	}
 
-	newMessageKey := MessageKey{
-		key:   keyMaterial[:32],
-		index: len(m.messageKeys),
-	}
+	messageKey := keyMaterial[:32] // First half for encryption
+	m.chainKey = keyMaterial[32:]  // Second half for next iteration
 
-	m.messageKeys = append(m.messageKeys, newMessageKey)
-	m.rootKey = keyMaterial[:32]
+	return messageKey
 }
 
 func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) {
-	salt := make([]byte, 64)
-	messageKey := m.getCurrentMessageKey()
+	messageKey := m.m_CKCycle()
+	nextIndex := m.previousIndex + 1
 
-	derivedKey, err := Derive(messageKey, salt, nil, 64)
+	salt := make([]byte, 64)
+	derivedKey, err := derive(messageKey, salt, nil, 64)
 	if err != nil {
 		return nil, nil, -1, err
 	}
@@ -60,48 +83,93 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
 	mac.Write(append(nonce, ciphertext...))
 	macHash := mac.Sum(nil)
 
-	return append(nonce, ciphertext...), macHash, len(m.messageKeys) - 1, nil
+	m.previousIndex = nextIndex
+
+	return append(nonce, ciphertext...), macHash, nextIndex, nil
 }
 
-func (m *MessageRatchet) getCurrentMessageKey() []byte {
-	for _, messageKey := range m.messageKeys {
-		if messageKey.index == len(m.messageKeys) {
-			return messageKey.key
-		}
+func (m *MessageRatchet) generateMessageKeyForIndex(targetIndex int) []byte {
+	if targetIndex <= m.previousIndex {
+		return nil // Cannot generate keys for past indices
 	}
 
-	return nil
-}
+	// Calculate how many steps we need to advance
+	steps := targetIndex - (m.previousIndex + 1)
 
-func (m *MessageRatchet) GetMessageKey(index int) []byte {
-	for _, messageKey := range m.messageKeys {
-		if messageKey.index == index {
-			return messageKey.key
+	// Generate intermediate keys and store them for skipped messages
+	var messageKey []byte
+	currentIndex := m.previousIndex + 1
+
+	for i := 0; i <= steps; i++ {
+		messageKey = m.m_CKCycle()
+
+		// Store all intermediate keys except the target one
+		if i < steps {
+			m.skippedMessageKeys[currentIndex] = messageKey
 		}
+		currentIndex++
 	}
 
-	return nil
+	// Update the previous index only if we're processing in order
+	if steps == 0 {
+		m.previousIndex = targetIndex
+	}
+
+	return messageKey
 }
 
-func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, idx int) ([]byte, error) {
-	if idx < 0 {
+func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte, error) {
+	// Check if this is a skipped message key we already saved
+	if msgKey, exists := m.skippedMessageKeys[msgIdx]; exists {
+		// Delete after use
+		defer delete(m.skippedMessageKeys, msgIdx)
+
+		// Use the skipped message key to decrypt
+		return m.decryptWithKey(ciphertext, macHash, msgKey)
+	}
+
+	// Handle new messages
+	if msgIdx < 0 {
 		return nil, fmt.Errorf("invalid message key index")
 	}
 
-	if idx >= len(m.messageKeys) {
-		// Generate a new message key to current index
-		for i := len(m.messageKeys); i <= idx+1; i++ {
-			m.CKCycle()
+	// If message from the future (higher index than expected)
+	if msgIdx > m.previousIndex+1 {
+		// Calculate how many messages were skipped
+		skipped := msgIdx - (m.previousIndex + 1)
+
+		// Enforce maximum skip limit
+		if skipped > m.maxSkip {
+			return nil, fmt.Errorf("too many skipped messages: %d", skipped)
+		}
+
+		// Store keys for skipped messages
+		for i := m.previousIndex + 1; i < msgIdx; i++ {
+			// Generate and save message keys for all skipped indices
+			skippedKey := m.generateMessageKeyForIndex(i)
+			m.skippedMessageKeys[i] = skippedKey
 		}
 	}
 
-	messageKey := m.GetMessageKey(idx)
-	if messageKey == nil {
-		return nil, fmt.Errorf("invalid message key index")
+	// Get or generate the message key for this index
+	var messageKey []byte
+	if msgIdx <= m.previousIndex {
+		return nil, fmt.Errorf("message index already processed: %d", msgIdx)
+	} else {
+		// Need to advance to this index
+		messageKey = m.generateMessageKeyForIndex(msgIdx)
 	}
 
+	// Update previous index after successful generation
+	m.previousIndex = msgIdx
+
+	// Decrypt using the message key
+	return m.decryptWithKey(ciphertext, macHash, messageKey)
+}
+
+func (m *MessageRatchet) decryptWithKey(ciphertext, macHash, messageKey []byte) ([]byte, error) {
 	salt := make([]byte, 64)
-	derivedKey, err := Derive(messageKey, salt, nil, 64)
+	derivedKey, err := derive(messageKey, salt, nil, 64)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 // Derive generates a key from input key material using HKDF.
-func Derive(input, salt, info []byte, length int) ([]byte, error) {
+func derive(input, salt, info []byte, length int) ([]byte, error) {
 	prk := extract(input, salt)
 
 	okm, err := expand(prk, info, length)
