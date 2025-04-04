@@ -18,6 +18,7 @@ end
 For the postgress database run the following commands
 
 ```bash
+mix ecto.drop
 mix ecto.create
 mix ecto.migrate
 ```

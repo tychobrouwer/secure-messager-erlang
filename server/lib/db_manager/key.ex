@@ -2,11 +2,13 @@ defmodule DbManager.Key do
   use Ecto.Schema
 
   require Logger
+  require Ecto.Query
 
   alias DbManager.Repo, as: Repo
   alias DbManager.Key, as: Key
 
   alias Ecto.Changeset, as: Changeset
+  alias Ecto.Query, as: Query
 
   schema("keys") do
     field(:user_id, :binary_id)
@@ -27,6 +29,8 @@ defmodule DbManager.Key do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
 
     key = :crypto.strong_rand_bytes(32)
+
+    Repo.delete_all(Query.from(k in Key, where: k.user_id == ^user_id))
 
     case transaction_wrapper(fn ->
             %Key{}

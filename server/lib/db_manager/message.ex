@@ -15,14 +15,15 @@ defmodule DbManager.Message do
   @foreign_key_type :binary_id
 
   schema("messages") do
-    field(:tag, :binary)
-    field(:hash, :binary)
-    field(:public_key, :binary)
-    field(:message, :binary)
+    # field(:tag, :binary)
+    # field(:hash, :binary)
+    # field(:public_key, :binary)
+    # field(:message, :binary)
 
+    field(:message_data, :binary)
     field(:inserted_at, :integer)
-    field(:send_at, :integer)
-    field(:received_at, :integer)
+    # field(:send_at, :integer)
+    # field(:received_at, :integer)
 
     belongs_to(:sender, User, foreign_key: :sender_id, references: :user_id)
     belongs_to(:reciever, User, foreign_key: :receiver_id, references: :user_id)
@@ -35,22 +36,23 @@ defmodule DbManager.Message do
       [:tag, :hash, :public_key, :message, :sender_id, :receiver_id, :send_at]
     )
     |> Changeset.validate_required([
-      :tag,
-      :hash,
-      :public_key,
-      :message,
+      :message_data,
+      # :tag,
+      # :hash,
+      # :public_key,
+      # :message,
       :sender_id,
       :receiver_id,
-      :send_at
+      # :send_at
     ])
     |> Changeset.put_change(:inserted_at, :os.system_time(:microsecond))
   end
 
-  def receive(message_data) do
-    %{
-      sender_id_hash: sender_id_hash,
-      receiver_id_hash: receiver_id_hash
-    } = message_data
+  def receive(message_data, sender_id_hash, receiver_id_hash) do
+    # %{
+    #   sender_id_hash: sender_id_hash,
+    #   receiver_id_hash: receiver_id_hash
+    # } = message_data
 
     {:ok, sender_id} = Ecto.UUID.cast(sender_id_hash)
     {:ok, receiver_id} = Ecto.UUID.cast(receiver_id_hash)
@@ -59,13 +61,14 @@ defmodule DbManager.Message do
            changset =
              %Message{}
              |> Message.changeset(%{
-               tag: message_data.tag,
-               hash: message_data.hash,
-               public_key: message_data.public_key,
-               message: message_data.message,
+              #  tag: message_data.tag,
+              #  hash: message_data.hash,
+              #  public_key: message_data.public_key,
+              #  message: message_data.message,
+               message_data: message_data,
                sender_id: sender_id,
                receiver_id: receiver_id,
-               send_at: message_data.send_at
+              #  send_at: message_data.send_at
              })
 
            Repo.insert(changset)
@@ -135,19 +138,20 @@ defmodule DbManager.Message do
         _ -> nil
       end
 
-    Logger.notice(inspect(db_message.sender_id))
-    Logger.notice(inspect(sender_id_hash))
+    # Logger.notice(inspect(db_message.sender_id))
+    # Logger.notice(inspect(sender_id_hash))
 
     %{
-      tag: db_message.tag,
-      hash: db_message.hash,
-      public_key: db_message.public_key,
-      message: db_message.message,
+      # tag: db_message.tag,
+      # hash: db_message.hash,
+      # public_key: db_message.public_key,
+      # message: db_message.message,
+      message_data: db_message.message_data,
       sender_id_hash: sender_id_hash,
       receiver_id_hash: receiver_id_hash,
       insert_at: db_message.inserted_at,
-      send_at: db_message.send_at,
-      received_at: db_message.received_at
+      # send_at: db_message.send_at,
+      # received_at: db_message.received_at
     }
   end
 
@@ -171,15 +175,6 @@ defmodule DbManager.Message do
 
   #   message
   # end
-
-  def validate(message_data) do
-    Map.has_key?(message_data, :sender_id_hash) and
-      Map.has_key?(message_data, :receiver_id_hash) and
-      Map.has_key?(message_data, :tag) and
-      Map.has_key?(message_data, :hash) and
-      Map.has_key?(message_data, :public_key) and
-      Map.has_key?(message_data, :message)
-  end
 
   defp transaction_wrapper(fun) do
     case Repo.transaction(fn ->

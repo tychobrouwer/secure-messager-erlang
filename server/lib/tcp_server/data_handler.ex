@@ -81,60 +81,62 @@ defmodule TCPServer.DataHandler do
         GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil})
         GenServer.call(TCPServer, {:send_data, :res_logout, conn_uuid, message_id, <<0>>})
 
-      {:message, {id_hash, message_bin}} ->
-        message_data =
-          try do
-            :erlang.binary_to_term(message_bin, [:safe])
-          rescue
-            _ ->
-              Logger.error("Failed to parse message")
+      {:message, {id_hash, message_bytes}} ->
+        # message_data =
+        #   try do
+        #     :erlang.binary_to_term(message_bin, [:safe])
+        #   rescue
+        #     _ ->
+        #       Logger.error("Failed to parse message")
 
-              GenServer.call(
-                TCPServer,
-                {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
-              )
+        #       GenServer.call(
+        #         TCPServer,
+        #         {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
+        #       )
 
-              exit(:failed_to_parse_message)
-          end
+        #       exit(:failed_to_parse_message)
+        #   end
+
+        <<receiver_id_hash::binary-size(16), message_data::binary>> = message_bytes
 
         cond do
-          not DbManager.Message.validate(message_data) ->
-            GenServer.call(
-              TCPServer,
-              {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
-            )
+          # not DbManager.Message.validate(message_data) ->
+          #   GenServer.call(
+          #     TCPServer,
+          #     {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
+          #   )
 
-          not DbManager.User.exists(message_data.receiver_id_hash) ->
+          not DbManager.User.exists(receiver_id_hash) ->
             GenServer.call(
               TCPServer,
               {:send_data, :error, conn_uuid, message_id, :invalid_message_receiver}
             )
 
-          message_data.sender_id_hash !== id_hash ->
-            GenServer.call(
-              TCPServer,
-              {:send_data, :error, conn_uuid, message_id, :invalid_message_sender}
-            )
+          # message_data.sender_id_hash !== id_hash ->
+          #   GenServer.call(
+          #     TCPServer,
+          #     {:send_data, :error, conn_uuid, message_id, :invalid_message_sender}
+          #   )
 
           true ->
             message_uuid =
-              DbManager.Message.receive(message_data)
+              DbManager.Message.receive(message_data, id_hash, receiver_id_hash)
 
-            case GenServer.call(
-                   TCPServer,
-                   {:get_connection_id_hash, message_data.receiver_id_hash}
-                 ) do
-              nil ->
-                nil
+            # case GenServer.call(
+            #        TCPServer,
+            #        {:get_connection_id_hash, message_data.receiver_id_hash}
+            #      ) do
+            #   nil ->
+            #     nil
 
-              receiver_id_hash ->
-                messages_bin = :erlang.term_to_binary([message_data])
+            #   receiver_id_hash ->
+            #     messages_bin = :erlang.term_to_binary([message_data])
 
-                GenServer.call(
-                  TCPServer,
-                  {:send_data, :res_messages, receiver_id_hash, message_id, messages_bin}
-                )
-            end
+            #     GenServer.call(
+            #       TCPServer,
+            #       {:send_data, :res_messages, receiver_id_hash, message_id, messages_bin}
+            #     )
+            # end
 
             GenServer.call(
               TCPServer,
@@ -145,21 +147,27 @@ defmodule TCPServer.DataHandler do
       {:req_messages, {id_hash, data}} ->
         {sender_id_hash, last_us_timestamp} =
           if byte_size(data) > 20 do
-            <<sender_id_hash::binary-size(16), timestamp_us_bin::binary>> = data
+            <<sender_id_hash::binary-size(16), timestamp_us_bytes::binary>> = data
 
-            {sender_id_hash, :erlang.binary_to_integer(timestamp_us_bin)}
+            {sender_id_hash, Utils.bytes_to_int(timestamp_us_bytes)}
           else
-            {nil, :erlang.binary_to_integer(data)}
+            {nil, Utils.bytes_to_int(data)}
           end
 
         messages =
           DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp)
 
-        messages_bin = :erlang.term_to_binary(messages)
+        Logger.info("Messages -> #{inspect(messages)}")
+
+        messages_bytes =
+          Enum.reduce(messages, <<>>, fn message, acc ->
+            message_length = Utils.int_to_bytes(byte_size(message.message_data), 4)
+            <<acc::binary, sender_id_hash::binary, message_length::binary, message.message_data::binary>>
+          end)
 
         GenServer.call(
           TCPServer,
-          {:send_data, :res_messages, conn_uuid, message_id, messages_bin}
+          {:send_data, :res_messages, conn_uuid, message_id, messages_bytes}
         )
 
       {:req_pub_key, {_id_hash, req_id_hash}} ->
@@ -224,7 +232,7 @@ defmodule TCPServer.DataHandler do
   end
 
   def send_data(socket, type, message_id, message, retry_nr \\ 0) do
-    type_int = TCPServer.Utils.packet_to_int(type)
+    type_int = Utils.packet_to_int(type)
 
     result =
       create_packet(1, type_int, message_id, message)

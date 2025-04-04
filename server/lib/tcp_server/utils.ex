@@ -1,4 +1,6 @@
 defmodule TCPServer.Utils do
+  import Bitwise
+
   @type packet_type ::
           :ack
           | :error
@@ -87,5 +89,23 @@ defmodule TCPServer.Utils do
     uuid_bytes = <<perf_counter::64, random::32>> <> pid
 
     :crypto.hash(:md4, uuid_bytes)
+  end
+
+  def int_to_bytes(int, nr_bytes) when int >= 0 do
+    do_int_to_bytes(int, nr_bytes, [])
+    |> :binary.list_to_bin()
+  end
+
+  defp do_int_to_bytes(_, 0, acc), do: Enum.reverse(acc)
+
+  defp do_int_to_bytes(int, n, acc) do
+    byte = band(int >>> ((n - 1) * 8), 0xFF)
+    do_int_to_bytes(int, n - 1, [byte | acc])
+  end
+
+  def bytes_to_int(<<>>), do: 0
+
+  def bytes_to_int(<<byte, rest::binary>>) do
+    (byte <<< (byte_size(rest) * 8)) + bytes_to_int(rest)
   end
 end

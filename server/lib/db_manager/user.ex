@@ -39,7 +39,7 @@ defmodule DbManager.User do
     {:ok, user_id} = Ecto.UUID.cast(id_hash)
     case Repo.get_by(Key, user_id: user_id) do
       nil ->
-        {:error, :login_failed}
+        {:error, :signup_failed}
 
       key_entry ->
         length = byte_size(encrypted_pass_with_tag)
