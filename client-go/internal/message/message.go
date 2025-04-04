@@ -36,6 +36,7 @@ type Message struct {
 	encryptedMessage []byte
 	plainMessage     []byte
 	hash             Hash
+	senderIDHash     []byte
 }
 
 func NewPlainMessage(plainMessage []byte) *Message {
@@ -86,6 +87,7 @@ func ParseMessagesData(data []byte) ([]*Message, error) {
 		message, err := parseMessageData(messageData)
 		if err != nil {
 			failedIdxs = append(failedIdxs, i)
+			i++
 			continue
 		}
 
@@ -101,9 +103,18 @@ func ParseMessagesData(data []byte) ([]*Message, error) {
 }
 
 func parseMessageData(data []byte) (*Message, error) {
-	publicKey := data[:32]
-	index := utils.BytesToInt(data[32 : 32+utils.PACKET_LENGTH_NR_BYTES])
-	encryptedMessage := data[32+utils.PACKET_LENGTH_NR_BYTES : len(data)-len(Hash{})]
+	offset := 0
+
+	senderIDHash := data[offset : offset+16]
+	offset += 16
+
+	publicKey := data[offset : offset+32]
+	offset += 32
+
+	index := utils.BytesToInt(data[offset : offset+utils.PACKET_LENGTH_NR_BYTES])
+	offset += utils.PACKET_LENGTH_NR_BYTES
+
+	encryptedMessage := data[offset : len(data)-len(Hash{})]
 	hash, err := bytesToHash(data[len(data)-len(Hash{}):])
 
 	if err != nil {
@@ -119,11 +130,16 @@ func parseMessageData(data []byte) (*Message, error) {
 		plainMessage:     nil,
 		encryptedMessage: encryptedMessage,
 		hash:             hash,
+		senderIDHash:     senderIDHash,
 	}, nil
 }
 
+func (m *Message) SenderIDHash() []byte {
+	return m.senderIDHash
+}
+
 func (m *Message) Payload() []byte {
-	data := make([]byte, 0, len(m.encryptedMessage)+len(m.hash)+len(m.header.publicKey)+4)
+	data := make([]byte, 0, 16+len(m.header.publicKey)+4+len(m.encryptedMessage)+len(m.hash))
 	data = append(data, m.header.publicKey...)
 	data = append(data, utils.IntToBytes(m.header.index)...)
 	data = append(data, m.encryptedMessage...)

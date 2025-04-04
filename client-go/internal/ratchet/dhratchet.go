@@ -11,6 +11,7 @@ type RatchetState int
 const (
 	Sending RatchetState = iota
 	Receiving
+	Unknown
 )
 
 type DHRatchet struct {
@@ -28,11 +29,15 @@ func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte) *DHRatchet {
 		log.Fatalf("Failed to generate shared secret: %v", err)
 	}
 
+	messageRatchet := NewMessageRatchet()
+	messageRatchet.Initialize(rootKey, foreignPublicKey)
+
 	return &DHRatchet{
 		keyPair:          keypair,
 		rootKey:          rootKey,
+		messageRatchet:   messageRatchet,
 		previousRatchets: []MessageRatchet{},
-		state:            Sending,
+		state:            Unknown,
 	}
 }
 

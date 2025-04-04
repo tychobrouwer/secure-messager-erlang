@@ -35,8 +35,6 @@ func GenerateSharedSecret(keypair KeyPair, publicKey []byte) ([]byte, error) {
 	sharedSecret, err := curve25519.X25519(keypair.PrivateKey, publicKey)
 
 	if err != nil {
-		log.Fatalf("Failed to generate shared secret: %v", err)
-
 		return nil, err
 	}
 

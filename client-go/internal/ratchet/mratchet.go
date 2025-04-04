@@ -40,6 +40,7 @@ func (m *MessageRatchet) m_CKCycle() []byte {
 			log.Printf("Failed to generate key material: %v", err)
 			return nil
 		}
+
 		m.chainKey = keyMaterial[32:] // Second half becomes the chain key
 		return keyMaterial[:32]       // First half becomes the message key
 	}

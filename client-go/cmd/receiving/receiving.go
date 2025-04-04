@@ -5,20 +5,13 @@ import (
 	"client-go/internal/tcpclient"
 	"fmt"
 	"log"
-	"os"
 	"time"
 )
 
 func main() {
-	args := os.Args
-	if len(args) != 2 {
-		fmt.Println("Usage: go run main.go <username>")
-		return
-	}
-
 	fmt.Println("Starting client...")
 
-	username := []byte(args[1])
+	username := []byte("test1")
 
 	s := tcpclient.NewTCPServer("127.0.0.1", 4040)
 	c := client.NewClient(username, []byte("password"), s)
@@ -57,26 +50,16 @@ func main() {
 		fmt.Println("Contact added.")
 	}
 
-	time.Sleep(1 * time.Second)
-	fmt.Println("Sending a message...")
+	for {
+		messages, err := c.ReceiveMessages()
+		if err != nil {
+			fmt.Printf("Failed to receive message: %v\n", err)
+		}
 
-	err = c.SendMessage([]byte("test9"), []byte("Hello, test9!"))
-	if err != nil {
-		log.Fatalf("Failed to send message: %v", err)
-	} else {
-		fmt.Println("Message sent.")
+		for i := range messages {
+			fmt.Printf("Received message: %s\n", messages[i].PlainMessage())
+		}
+
+		time.Sleep(1 * time.Second)
 	}
-
-	// for {
-	// 	message := &message.Message{}
-
-	// 	message, err = c.ReceiveMessage()
-	// 	if err != nil {
-	// 		log.Fatalf("Failed to send message: %v", err)
-	// 	}
-
-	// 	if message != nil {
-	// 		fmt.Printf("Received message: %s\n", message.PlainMessage())
-	// 	}
-	// }
 }

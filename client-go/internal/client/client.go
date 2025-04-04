@@ -25,7 +25,7 @@ type Client struct {
 	contacts  []Contact
 }
 
-func getContactByID(contacts []Contact, contactID []byte) *Contact {
+func getContactByIDHash(contacts []Contact, contactID []byte) *Contact {
 	for i := range contacts {
 		if bytes.Equal(contacts[i].UserID, contactID) {
 			return &contacts[i]
@@ -46,6 +46,11 @@ func NewClient(userID, password []byte, server *tcpclient.TCPServer) *Client {
 
 func (c *Client) Login() error {
 	userIDHash := md5.Sum([]byte(c.UserID))
+
+	c.KeyPair = crypt.KeyPair{
+		PublicKey:  []byte{121, 217, 135, 191, 103, 184, 203, 176, 121, 232, 253, 181, 214, 248, 167, 181, 246, 141, 205, 147, 165, 194, 165, 54, 162, 242, 253, 20, 115, 216, 248, 121},
+		PrivateKey: []byte{134, 140, 111, 206, 27, 217, 225, 251, 60, 12, 176, 148, 185, 156, 25, 220, 151, 201, 163, 6, 161, 253, 169, 56, 37, 210, 188, 71, 145, 106, 78, 3},
+	}
 
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
 	if err != nil {
@@ -90,9 +95,13 @@ func (c *Client) Signup() error {
 		return err
 	}
 
-	keypair, err := crypt.GenerateKeyPair()
-	if err != nil {
-		return err
+	// keypair, err := crypt.GenerateKeyPair()
+	// if err != nil {
+	// 	return err
+	// }
+	keypair := crypt.KeyPair{
+		PublicKey:  []byte{121, 217, 135, 191, 103, 184, 203, 176, 121, 232, 253, 181, 214, 248, 167, 181, 246, 141, 205, 147, 165, 194, 165, 54, 162, 242, 253, 20, 115, 216, 248, 121},
+		PrivateKey: []byte{134, 140, 111, 206, 27, 217, 225, 251, 60, 12, 176, 148, 185, 156, 25, 220, 151, 201, 163, 6, 161, 253, 169, 56, 37, 210, 188, 71, 145, 106, 78, 3},
 	}
 
 	c.KeyPair = keypair
@@ -130,15 +139,15 @@ func (c *Client) Signup() error {
 }
 
 func (c *Client) SendMessage(contactID, plainMessage []byte) error {
-	contact := getContactByID(c.contacts, contactID)
+	contactIDHash := md5.Sum([]byte(contactID))
+
+	contact := getContactByIDHash(c.contacts, contactIDHash[:])
 	if contact == nil {
 		return fmt.Errorf("contact not found")
 	}
 
 	message := message.NewPlainMessage(plainMessage)
 	message.Encrypt(contact.DHRatchet)
-
-	contactIDHash := md5.Sum([]byte(contactID))
 
 	payload := append(contactIDHash[:], message.Payload()...)
 
@@ -150,7 +159,7 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	return nil
 }
 
-func (c *Client) ReceiveMessage() ([]*message.Message, error) {
+func (c *Client) ReceiveMessages() ([]*message.Message, error) {
 	// Get message from server
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, nil)
 	if err != nil {
@@ -166,30 +175,23 @@ func (c *Client) ReceiveMessage() ([]*message.Message, error) {
 		return nil, fmt.Errorf("invalid message format")
 	}
 
-	fmt.Printf("Received message: %x\n", len(response.Data))
-
-	// Extract sender ID from the response (first 16 bytes)
-	senderID := response.Data[:16]
-	messageData := response.Data[16:]
-
-	// Find contact or return error
-	contact := getContactByID(c.contacts, senderID)
-	if contact == nil {
-		return nil, fmt.Errorf("received message from unknown contact")
-	}
-
-	// Extract header information
-	if len(messageData) < 36 { // Minimum size: 32 bytes for public key + 4 bytes for index
-		return nil, fmt.Errorf("invalid message format")
-	}
-
-	messages, err := message.ParseMessagesData(messageData)
+	messages, err := message.ParseMessagesData(response.Data)
 	if err != nil {
 		return messages, fmt.Errorf("failed to parse message data: %v", err)
 	}
 
 	failedIdxs := []int{}
 	for i := range messages {
+		senderIDHash := messages[i].SenderIDHash()
+
+		contact := getContactByIDHash(c.contacts, senderIDHash)
+		if contact == nil {
+			c.AddContactByHash(senderIDHash)
+			contact = getContactByIDHash(c.contacts, senderIDHash)
+		}
+
+		fmt.Printf("Decrypting message from: %x\n", contact.UserID)
+
 		// Decrypt message
 		err = messages[i].Decrypt(contact.DHRatchet)
 		if err != nil {
@@ -209,10 +211,16 @@ func (c *Client) ReceiveMessage() ([]*message.Message, error) {
 func (c *Client) AddContact(contactID []byte) error {
 	contactIDHash := md5.Sum([]byte(contactID))
 
-	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash[:])
+	return c.AddContactByHash(contactIDHash[:])
+}
+
+func (c *Client) AddContactByHash(contactIDHash []byte) error {
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash)
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Adding contact: %x\n", contactIDHash)
 
 	contact := Contact{
 		UserID:    contactIDHash[:],
