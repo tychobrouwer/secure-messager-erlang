@@ -5,7 +5,6 @@ import (
 	"client-go/internal/tcpclient"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -26,20 +25,20 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	fmt.Println("Signing up...")
+	// fmt.Println("Signing up...")
 
-	err := c.Signup()
-	if err != nil {
-		log.Fatalf("Signup failed: %v", err)
-	} else {
-		fmt.Println("Signup successful.")
-	}
+	// err := c.Signup()
+	// if err != nil {
+	// 	log.Fatalf("Signup failed: %v", err)
+	// } else {
+	// 	fmt.Println("Signup successful.")
+	// }
 
-	time.Sleep(1 * time.Second)
+	// time.Sleep(1 * time.Second)
 
 	fmt.Println("Logging in...")
 
-	err = c.Login()
+	err := c.Login()
 	if err != nil {
 		log.Fatalf("Login failed: %v", err)
 	} else {
@@ -51,37 +50,33 @@ func main() {
 
 	fmt.Println("Adding a new contact...")
 
-	err = c.AddContact([]byte("HS0QVP"))
+	err = c.AddContact([]byte("test9"))
 	if err != nil {
 		log.Fatalf("Failed to add contact: %v", err)
 	} else {
 		fmt.Println("Contact added.")
 	}
 
-	for true {
-		fmt.Println("Enter a message to send:")
-		var message string
-		fmt.Scanln(&message)
+	time.Sleep(1 * time.Second)
+	fmt.Println("Sending a message...")
 
-		if message == "exit" {
-			while = false
-			break
-		}
-
-		err = c.SendMessage([]byte("HS0QVP"), []byte(message))
-		if err != nil {
-			log.Fatalf("Failed to send message: %v", err)
-		}
+	err = c.SendMessage([]byte("test9"), []byte("Hello, test9!"))
+	if err != nil {
+		log.Fatalf("Failed to send message: %v", err)
+	} else {
+		fmt.Println("Message sent.")
 	}
-}
 
-const charset = "abcdefghijklmnopqrstuvwxyz" +
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// for {
+	// 	message := &message.Message{}
 
-func generateUsername() string {
-	b := make([]byte, 6)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
+	// 	message, err = c.ReceiveMessage()
+	// 	if err != nil {
+	// 		log.Fatalf("Failed to send message: %v", err)
+	// 	}
+
+	// 	if message != nil {
+	// 		fmt.Printf("Received message: %s\n", message.PlainMessage())
+	// 	}
+	// }
 }
