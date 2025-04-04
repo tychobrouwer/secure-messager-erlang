@@ -24,7 +24,7 @@ func NewTCPServer(address string, port int) *TCPServer {
 	retryInterval := 1 * time.Second
 	maxAttempts := 10
 
-	for attempts := 0; attempts < maxAttempts; attempts++ {
+	for range maxAttempts {
 		conn, err = net.Dial("tcp", address+":"+strconv.Itoa(port))
 		if err == nil {
 			break
@@ -65,7 +65,7 @@ func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (*Packet, 
 		return &Packet{}, err
 	}
 
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, MAX_MESSAGE_SIZE)
 	n, err := s.conn.Read(buffer)
 
 	if err != nil {

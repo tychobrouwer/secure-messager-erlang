@@ -38,7 +38,7 @@ type Packet struct {
 }
 
 const (
-	MAX_MESSAGE_SIZE = 1024
+	MAX_MESSAGE_SIZE = 1024 * 1024 // 1 MB
 )
 
 func (p Packet) payload(s *TCPServer) ([]byte, error) {
@@ -61,8 +61,7 @@ func (p Packet) payload(s *TCPServer) ([]byte, error) {
 
 	message = append(message, p.Data...)
 
-	length := len(message)
-	message = append(utils.IntToBytes(length, 4), message...)
+	message = append(utils.IntToBytes(len(message)), message...)
 	return message, nil
 }
 
@@ -95,7 +94,7 @@ func parsePacket(data []byte) (*Packet, error) {
 	return packet, nil
 }
 
-func ParseAuthToken(data []byte) (AuthToken, error) {
+func BytesToAuthToken(data []byte) (AuthToken, error) {
 	if len(data) != len(AuthToken{}) {
 		return AuthToken{}, fmt.Errorf("invalid auth token length")
 	}
@@ -103,14 +102,4 @@ func ParseAuthToken(data []byte) (AuthToken, error) {
 	token := AuthToken{}
 	copy(token[:], data)
 	return token, nil
-}
-
-func ParseAuthID(data []byte) (AuthID, error) {
-	if len(data) != len(AuthID{}) {
-		return AuthID{}, fmt.Errorf("invalid auth ID length")
-	}
-
-	authID := AuthID{}
-	copy(authID[:], data)
-	return authID, nil
 }

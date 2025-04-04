@@ -82,61 +82,18 @@ defmodule TCPServer.DataHandler do
         GenServer.call(TCPServer, {:send_data, :res_logout, conn_uuid, message_id, <<0>>})
 
       {:message, {id_hash, message_bytes}} ->
-        # message_data =
-        #   try do
-        #     :erlang.binary_to_term(message_bin, [:safe])
-        #   rescue
-        #     _ ->
-        #       Logger.error("Failed to parse message")
-
-        #       GenServer.call(
-        #         TCPServer,
-        #         {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
-        #       )
-
-        #       exit(:failed_to_parse_message)
-        #   end
-
         <<receiver_id_hash::binary-size(16), message_data::binary>> = message_bytes
 
         cond do
-          # not DbManager.Message.validate(message_data) ->
-          #   GenServer.call(
-          #     TCPServer,
-          #     {:send_data, :error, conn_uuid, message_id, :invalid_message_data}
-          #   )
-
           not DbManager.User.exists(receiver_id_hash) ->
             GenServer.call(
               TCPServer,
               {:send_data, :error, conn_uuid, message_id, :invalid_message_receiver}
             )
 
-          # message_data.sender_id_hash !== id_hash ->
-          #   GenServer.call(
-          #     TCPServer,
-          #     {:send_data, :error, conn_uuid, message_id, :invalid_message_sender}
-          #   )
-
           true ->
             message_uuid =
               DbManager.Message.receive(message_data, id_hash, receiver_id_hash)
-
-            # case GenServer.call(
-            #        TCPServer,
-            #        {:get_connection_id_hash, message_data.receiver_id_hash}
-            #      ) do
-            #   nil ->
-            #     nil
-
-            #   receiver_id_hash ->
-            #     messages_bin = :erlang.term_to_binary([message_data])
-
-            #     GenServer.call(
-            #       TCPServer,
-            #       {:send_data, :res_messages, receiver_id_hash, message_id, messages_bin}
-            #     )
-            # end
 
             GenServer.call(
               TCPServer,

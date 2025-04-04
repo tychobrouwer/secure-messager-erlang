@@ -71,7 +71,7 @@ func (c *Client) Login() error {
 		return err
 	}
 
-	authToken, err := tcpclient.ParseAuthToken(response.Data)
+	authToken, err := tcpclient.BytesToAuthToken(response.Data)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (c *Client) Signup() error {
 		return err
 	}
 
-	authToken, err := tcpclient.ParseAuthToken(response.Data)
+	authToken, err := tcpclient.BytesToAuthToken(response.Data)
 
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	return nil
 }
 
-func (c *Client) ReceiveMessage() (*message.Message, error) {
+func (c *Client) ReceiveMessage() ([]*message.Message, error) {
 	// Get message from server
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, nil)
 	if err != nil {
@@ -183,15 +183,27 @@ func (c *Client) ReceiveMessage() (*message.Message, error) {
 		return nil, fmt.Errorf("invalid message format")
 	}
 
-	message := message.ParseMessageData(messageData)
-
-	// Decrypt message
-	err = message.Decrypt(contact.DHRatchet)
+	messages, err := message.ParseMessagesData(messageData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt message: %v", err)
+		return messages, fmt.Errorf("failed to parse message data: %v", err)
 	}
 
-	return message, nil
+	failedIdxs := []int{}
+	for i := range messages {
+		// Decrypt message
+		err = messages[i].Decrypt(contact.DHRatchet)
+		if err != nil {
+			failedIdxs = append(failedIdxs, i)
+			continue
+		}
+	}
+
+	if len(failedIdxs) > 0 {
+		return messages, fmt.Errorf("failed to decrypt messages at indices: %v", failedIdxs)
+	}
+
+	return messages, nil
+
 }
 
 func (c *Client) AddContact(contactID []byte) error {

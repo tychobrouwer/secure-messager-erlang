@@ -9,6 +9,22 @@ import (
 	"log"
 )
 
+type Hash [32]byte
+
+func bytesToHash(b []byte) (Hash, error) {
+	if len(b) != 32 {
+		return Hash{}, fmt.Errorf("invalid hash length: expected 32 bytes, got %d", len(b))
+	}
+
+	var hash Hash
+	copy(hash[:], b)
+	return hash, nil
+}
+
+func hashToBytes(h Hash) []byte {
+	return h[:]
+}
+
 type MessageHeader struct {
 	publicKey []byte
 	index     int
@@ -19,7 +35,7 @@ type Message struct {
 	header           MessageHeader
 	encryptedMessage []byte
 	plainMessage     []byte
-	hash             []byte
+	hash             Hash
 }
 
 func NewPlainMessage(plainMessage []byte) *Message {
@@ -28,7 +44,12 @@ func NewPlainMessage(plainMessage []byte) *Message {
 	}
 }
 
-func NewEncryptedMessage(encryptedMessage, hash, publicKey []byte, idx int) *Message {
+func NewEncryptedMessage(encryptedMessage, hash_bytes, publicKey []byte, idx int) (*Message, error) {
+	hash, err := bytesToHash(hash_bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert bytes to hash: %v", err)
+	}
+
 	return &Message{
 		header: MessageHeader{
 			publicKey: publicKey,
@@ -38,14 +59,56 @@ func NewEncryptedMessage(encryptedMessage, hash, publicKey []byte, idx int) *Mes
 		plainMessage:     nil,
 		encryptedMessage: encryptedMessage,
 		hash:             hash,
-	}
+	}, nil
 }
 
-func ParseMessageData(data []byte) *Message {
+func ParseMessagesData(data []byte) ([]*Message, error) {
+	var messages []*Message
+	offset := 0
+	i := 0
+
+	failedIdxs := make([]int, 0)
+	for offset < len(data) {
+		if len(data[offset:]) < utils.PACKET_LENGTH_NR_BYTES {
+			return nil, fmt.Errorf("insufficient data for message length")
+		}
+
+		messageLength := utils.BytesToInt(data[offset : offset+utils.PACKET_LENGTH_NR_BYTES])
+		offset += utils.PACKET_LENGTH_NR_BYTES
+
+		if len(data[offset:]) < messageLength {
+			return messages, fmt.Errorf("insufficient data for message")
+		}
+
+		messageData := data[offset : offset+messageLength]
+		offset += messageLength
+
+		message, err := parseMessageData(messageData)
+		if err != nil {
+			failedIdxs = append(failedIdxs, i)
+			continue
+		}
+
+		messages = append(messages, message)
+		i++
+	}
+
+	if len(failedIdxs) > 0 {
+		return messages, fmt.Errorf("failed to parse messages at indices: %v", failedIdxs)
+	}
+
+	return messages, nil
+}
+
+func parseMessageData(data []byte) (*Message, error) {
 	publicKey := data[:32]
-	index := utils.BytesToInt(data[32:36])
-	encryptedMessage := data[36 : len(data)-32] // Last 32 bytes are the hash
-	hash := data[len(data)-32:]
+	index := utils.BytesToInt(data[32 : 32+utils.PACKET_LENGTH_NR_BYTES])
+	encryptedMessage := data[32+utils.PACKET_LENGTH_NR_BYTES : len(data)-len(Hash{})]
+	hash, err := bytesToHash(data[len(data)-len(Hash{}):])
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert bytes to hash: %v", err)
+	}
 
 	return &Message{
 		header: MessageHeader{
@@ -56,7 +119,17 @@ func ParseMessageData(data []byte) *Message {
 		plainMessage:     nil,
 		encryptedMessage: encryptedMessage,
 		hash:             hash,
-	}
+	}, nil
+}
+
+func (m *Message) Payload() []byte {
+	data := make([]byte, 0, len(m.encryptedMessage)+len(m.hash)+len(m.header.publicKey)+4)
+	data = append(data, m.header.publicKey...)
+	data = append(data, utils.IntToBytes(m.header.index)...)
+	data = append(data, m.encryptedMessage...)
+	data = append(data, hashToBytes(m.hash)...)
+
+	return data
 }
 
 func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
@@ -80,9 +153,14 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	messageRatchet := r.GetMessageRatchet()
 
 	// encrypt message with current message ratchet
-	encryptedMessage, hash, idx, err := messageRatchet.Encrypt(m.plainMessage)
+	encryptedMessage, hash_bytes, idx, err := messageRatchet.Encrypt(m.plainMessage)
 	if err != nil {
 		return err
+	}
+
+	hash, err := bytesToHash(hash_bytes)
+	if err != nil {
+		return fmt.Errorf("failed to convert bytes to hash: %v", err)
 	}
 
 	m.encryptedMessage = encryptedMessage
@@ -93,15 +171,11 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	return nil
 }
 
-func (m *Message) Payload() []byte {
-	return append(m.header.publicKey, m.encryptedMessage...)
-}
-
 func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// Try current ratchet first
 	if r.IsCurrentRatchet(m.header.publicKey) {
 		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, m.hash, m.header.index)
+		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
 		if err == nil {
 			m.plainMessage = plaintext
 			return nil
@@ -111,7 +185,7 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// Try previous ratchets if current fails
 	prevRatchet := r.GetPrevRatchet(m.header.publicKey)
 	if prevRatchet != nil {
-		plaintext, err := prevRatchet.Decrypt(m.encryptedMessage, m.hash, m.header.index)
+		plaintext, err := prevRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
 		if err == nil {
 			m.plainMessage = plaintext
 			return nil
@@ -137,7 +211,7 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 
 		// Try decryption with new ratchet
 		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, m.hash, m.header.index)
+		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
 		if err != nil {
 			return err
 		}

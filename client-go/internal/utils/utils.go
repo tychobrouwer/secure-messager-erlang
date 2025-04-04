@@ -1,11 +1,19 @@
 package utils
 
-func IntToBytes(i int, nr_bytes int) []byte {
-	b := make([]byte, nr_bytes)
-	for j := 0; j < nr_bytes; j++ {
-		b[j] = byte(i >> (8 * (nr_bytes - j - 1)))
+const (
+	PACKET_LENGTH_NR_BYTES = 4
+)
+
+func IntToBytes(i int) []byte {
+	b := make([]byte, PACKET_LENGTH_NR_BYTES)
+	for j := 0; j < PACKET_LENGTH_NR_BYTES; j++ {
+		b[j] = byte(i >> (8 * (PACKET_LENGTH_NR_BYTES - j - 1)))
 	}
 	return b
+}
+
+func IntToBytesLength() int {
+	return 4
 }
 
 func BytesToInt(b []byte) int {
