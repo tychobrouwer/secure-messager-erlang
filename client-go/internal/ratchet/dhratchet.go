@@ -106,6 +106,10 @@ func (r *DHRatchet) IsReceiving() bool {
 	return r.state == Receiving
 }
 
+func (r *DHRatchet) IsSending() bool {
+	return r.state == Sending
+}
+
 func (r *DHRatchet) GetMessageRatchet() *MessageRatchet {
 	return r.messageRatchet
 }

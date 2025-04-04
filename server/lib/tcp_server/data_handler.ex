@@ -118,9 +118,12 @@ defmodule TCPServer.DataHandler do
 
         messages_bytes =
           Enum.reduce(messages, <<>>, fn message, acc ->
-            message_length = Utils.int_to_bytes(byte_size(message.message_data), 4)
-            <<acc::binary, sender_id_hash::binary, message_length::binary, message.message_data::binary>>
+            message_length = Utils.int_to_bytes(byte_size(message.message_data)+16, 4)
+
+            <<acc::binary, message_length::binary, message.sender_id_hash::binary, message.message_data::binary>>
           end)
+
+        Logger.info("Messages bytes -> #{inspect(messages_bytes)}")
 
         GenServer.call(
           TCPServer,

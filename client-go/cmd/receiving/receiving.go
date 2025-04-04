@@ -18,20 +18,20 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	// fmt.Println("Signing up...")
+	fmt.Println("Signing up...")
 
-	// err := c.Signup()
-	// if err != nil {
-	// 	log.Fatalf("Signup failed: %v", err)
-	// } else {
-	// 	fmt.Println("Signup successful.")
-	// }
+	err := c.Signup()
+	if err != nil {
+		log.Fatalf("Signup failed: %v", err)
+	} else {
+		fmt.Println("Signup successful.")
+	}
 
-	// time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	fmt.Println("Logging in...")
 
-	err := c.Login()
+	err = c.Login()
 	if err != nil {
 		log.Fatalf("Login failed: %v", err)
 	} else {

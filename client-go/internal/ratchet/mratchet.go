@@ -89,36 +89,6 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
 	return append(nonce, ciphertext...), macHash, nextIndex, nil
 }
 
-func (m *MessageRatchet) generateMessageKeyForIndex(targetIndex int) []byte {
-	if targetIndex <= m.previousIndex {
-		return nil // Cannot generate keys for past indices
-	}
-
-	// Calculate how many steps we need to advance
-	steps := targetIndex - (m.previousIndex + 1)
-
-	// Generate intermediate keys and store them for skipped messages
-	var messageKey []byte
-	currentIndex := m.previousIndex + 1
-
-	for i := 0; i <= steps; i++ {
-		messageKey = m.m_CKCycle()
-
-		// Store all intermediate keys except the target one
-		if i < steps {
-			m.skippedMessageKeys[currentIndex] = messageKey
-		}
-		currentIndex++
-	}
-
-	// Update the previous index only if we're processing in order
-	if steps == 0 {
-		m.previousIndex = targetIndex
-	}
-
-	return messageKey
-}
-
 func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte, error) {
 	// Check if this is a skipped message key we already saved
 	if msgKey, exists := m.skippedMessageKeys[msgIdx]; exists {
@@ -147,7 +117,7 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 		// Store keys for skipped messages
 		for i := m.previousIndex + 1; i < msgIdx; i++ {
 			// Generate and save message keys for all skipped indices
-			skippedKey := m.generateMessageKeyForIndex(i)
+			skippedKey := m.m_CKCycle()
 			m.skippedMessageKeys[i] = skippedKey
 		}
 	}
@@ -158,7 +128,7 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 		return nil, fmt.Errorf("message index already processed: %d", msgIdx)
 	} else {
 		// Need to advance to this index
-		messageKey = m.generateMessageKeyForIndex(msgIdx)
+		messageKey = m.m_CKCycle()
 	}
 
 	// Update previous index after successful generation

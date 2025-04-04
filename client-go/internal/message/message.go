@@ -1,7 +1,6 @@
 package message
 
 import (
-	"bytes"
 	"client-go/internal/crypt"
 	"client-go/internal/ratchet"
 	"client-go/internal/utils"
@@ -150,7 +149,7 @@ func (m *Message) Payload() []byte {
 
 func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	// if ratchet was last used for receiving
-	if r.IsReceiving() {
+	if !r.IsSending() {
 		// generate new key pair
 		newKeyPair, err := crypt.GenerateKeyPair()
 		if err != nil {
@@ -208,18 +207,18 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 		}
 	}
 
-	if !bytes.Equal(m.header.publicKey, r.GetPublicKey()) &&
-		!r.IsCurrentRatchet(m.header.publicKey) {
+	if !r.IsCurrentRatchet(m.header.publicKey) {
+		fmt.Printf("Decrypting with new ratchet %v\n", m.header.publicKey)
 
-		// New ratchet needed
-		if r.IsReceiving() {
-			// Generate new keypair since we're changing direction
-			newKeyPair, err := crypt.GenerateKeyPair()
-			if err != nil {
-				return err
-			}
-			r.UpdateKeyPair(newKeyPair)
-		}
+		// // New ratchet needed
+		// if r.IsReceiving() {
+		// 	// Generate new keypair since we're changing direction
+		// 	newKeyPair, err := crypt.GenerateKeyPair()
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	r.UpdateKeyPair(newKeyPair)
+		// }
 
 		// Establish new ratchet chain with the sender's public key
 		r.RKCycle(m.header.publicKey)

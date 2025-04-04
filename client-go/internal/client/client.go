@@ -190,8 +190,6 @@ func (c *Client) ReceiveMessages() ([]*message.Message, error) {
 			contact = getContactByIDHash(c.contacts, senderIDHash)
 		}
 
-		fmt.Printf("Decrypting message from: %x\n", contact.UserID)
-
 		// Decrypt message
 		err = messages[i].Decrypt(contact.DHRatchet)
 		if err != nil {
