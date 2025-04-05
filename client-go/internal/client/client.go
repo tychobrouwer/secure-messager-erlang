@@ -186,13 +186,15 @@ func (c *Client) ReceiveMessages() ([]*message.Message, error) {
 
 		contact := getContactByIDHash(c.contacts, senderIDHash)
 		if contact == nil {
-			c.AddContactByHash(senderIDHash)
+			c.AddContactByHash(senderIDHash, ratchet.Receiving)
 			contact = getContactByIDHash(c.contacts, senderIDHash)
 		}
 
 		// Decrypt message
 		err = messages[i].Decrypt(contact.DHRatchet)
 		if err != nil {
+			fmt.Printf("Failed to decrypt message: %v\n", err)
+
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
@@ -209,10 +211,10 @@ func (c *Client) ReceiveMessages() ([]*message.Message, error) {
 func (c *Client) AddContact(contactID []byte) error {
 	contactIDHash := md5.Sum([]byte(contactID))
 
-	return c.AddContactByHash(contactIDHash[:])
+	return c.AddContactByHash(contactIDHash[:], ratchet.Sending)
 }
 
-func (c *Client) AddContactByHash(contactIDHash []byte) error {
+func (c *Client) AddContactByHash(contactIDHash []byte, initState ratchet.RatchetState) error {
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash)
 	if err != nil {
 		return err
@@ -222,7 +224,7 @@ func (c *Client) AddContactByHash(contactIDHash []byte) error {
 
 	contact := Contact{
 		UserID:    contactIDHash[:],
-		DHRatchet: ratchet.NewDHRatchet(c.KeyPair, response.Data),
+		DHRatchet: ratchet.NewDHRatchet(c.KeyPair, response.Data, initState),
 	}
 
 	c.contacts = append(c.contacts, contact)

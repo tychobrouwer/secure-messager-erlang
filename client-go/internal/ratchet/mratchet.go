@@ -124,6 +124,10 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 
 	// Get or generate the message key for this index
 	var messageKey []byte
+
+	fmt.Printf("Decrypting message with index: %d\n", msgIdx)
+	fmt.Printf("Previous index: %d\n", m.previousIndex)
+
 	if msgIdx <= m.previousIndex {
 		return nil, fmt.Errorf("message index already processed: %d", msgIdx)
 	} else {

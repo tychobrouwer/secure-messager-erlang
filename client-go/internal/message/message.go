@@ -193,8 +193,9 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
 		if err == nil {
 			m.plainMessage = plaintext
-			return nil
 		}
+
+		return err
 	}
 
 	// Try previous ratchets if current fails
