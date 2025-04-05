@@ -209,18 +209,6 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	}
 
 	if !r.IsCurrentRatchet(m.header.publicKey) {
-		fmt.Printf("Decrypting with new ratchet %v\n", m.header.publicKey)
-
-		// // New ratchet needed
-		// if r.IsReceiving() {
-		// 	// Generate new keypair since we're changing direction
-		// 	newKeyPair, err := crypt.GenerateKeyPair()
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// 	r.UpdateKeyPair(newKeyPair)
-		// }
-
 		// Establish new ratchet chain with the sender's public key
 		r.RKCycle(m.header.publicKey)
 		r.UpdateState(ratchet.Receiving)

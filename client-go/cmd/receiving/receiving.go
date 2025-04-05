@@ -51,7 +51,7 @@ func main() {
 	}
 
 	for {
-		messages, err := c.ReceiveMessages()
+		messages, err := c.ReceiveMessages(nil)
 		if err != nil {
 			fmt.Printf("Failed to receive message: %v\n", err)
 		}

@@ -103,7 +103,7 @@ defmodule TCPServer.DataHandler do
 
       {:req_messages, {id_hash, data}} ->
         {sender_id_hash, last_us_timestamp} =
-          if byte_size(data) > 20 do
+          if byte_size(data) > 16 do
             <<sender_id_hash::binary-size(16), timestamp_us_bytes::binary>> = data
 
             {sender_id_hash, Utils.bytes_to_int(timestamp_us_bytes)}

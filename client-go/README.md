@@ -1,24 +1,35 @@
-# README.md
-
 # Secure Messager Client Go
 
 This project is a Go implementation of a secure messaging client that interacts with a server. It provides functionalities for user authentication, contact management, and message sending.
 
 ## Project Structure
 
-```
+```plain
 secure-messager-client-go
-├── cmd
-│   └── main.go          # Entry point of the application
+├── cmd 
+│   ├── sending             # Command for sending messages
+│   │   └── sending.go      # Implementation of message sending
+│   └── receiving           # Command for receiving messages
+│       └── receiving.go    # Implementation of message receiving
+│
 ├── internal
 │   ├── client
-│   │   ├── client.go    # Client functionality implementation
-│   │   └── client_test.go # Unit tests for the client
+│   │   └── client.go       # Core client functionality 
+│   ├── crypt
+│   │   ├── aes.go          # AES encryption/decryption
+│   │   └── keys.go         # Key management
+│   ├── message
+│   │   └── message.go      # Message handling (encryption/decryption)
+│   ├── ratchet
+│   │   ├── dhratchet.go    # Diffie-Hellman Ratchet implementation
+│   │   ├── hkdf.go         # HKDF key derivation function
+│   │   └── mratchet.go     # Message Ratchet implementation
 │   └── utils
-│       └── utils.go     # Utility functions
-├── go.mod                # Module definition
-├── go.sum                # Dependency checksums
-└── README.md             # Project documentation
+│       └── utils.go        # Utility functions
+│
+├── go.mod                  # Module definition
+├── go.sum                  # Dependency checksums
+└── README.md               # Project documentation
 ```
 
 ## Installation

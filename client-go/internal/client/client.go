@@ -10,7 +10,23 @@ import (
 	"client-go/internal/message"
 	"client-go/internal/ratchet"
 	"client-go/internal/tcpclient"
+	"client-go/internal/utils"
 )
+
+type ReceiveMessagePayload struct {
+	ContactIDHash  []byte
+	StartTimestamp int
+}
+
+func (m *ReceiveMessagePayload) payload() []byte {
+	if m.ContactIDHash == nil && m.StartTimestamp == 0 {
+		return nil
+	} else if m.ContactIDHash == nil {
+		return utils.IntToBytes(m.StartTimestamp)
+	} else {
+		return append(m.ContactIDHash, utils.IntToBytes(m.StartTimestamp)...)
+	}
+}
 
 type Contact struct {
 	UserID    []byte
@@ -159,9 +175,14 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	return nil
 }
 
-func (c *Client) ReceiveMessages() ([]*message.Message, error) {
+func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message.Message, error) {
+	if payloadData == nil {
+		payloadData = &ReceiveMessagePayload{}
+	}
+	payload := payloadData.payload()
+
 	// Get message from server
-	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, nil)
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, payload)
 	if err != nil {
 		return nil, err
 	}
