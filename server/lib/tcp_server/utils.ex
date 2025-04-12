@@ -91,8 +91,10 @@ defmodule TCPServer.Utils do
     :crypto.hash(:md4, uuid_bytes)
   end
 
-  def int_to_bytes(int, nr_bytes) when int >= 0 do
-    do_int_to_bytes(int, nr_bytes, [])
+  @int_byte_length 8
+
+  def int_to_bytes(int) when int >= 0 do
+    do_int_to_bytes(int, @int_byte_length, [])
     |> :binary.list_to_bin()
   end
 

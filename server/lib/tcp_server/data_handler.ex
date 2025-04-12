@@ -106,10 +106,14 @@ defmodule TCPServer.DataHandler do
           if byte_size(data) > 16 do
             <<sender_id_hash::binary-size(16), timestamp_us_bytes::binary>> = data
 
+            Logger.info("timestamp_us_bytes -> #{inspect(timestamp_us_bytes)}")
+
             {sender_id_hash, Utils.bytes_to_int(timestamp_us_bytes)}
           else
             {nil, Utils.bytes_to_int(data)}
           end
+
+        Logger.info("Timestamp -> #{inspect(last_us_timestamp)}")
 
         messages =
           DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp)
@@ -118,7 +122,7 @@ defmodule TCPServer.DataHandler do
 
         messages_bytes =
           Enum.reduce(messages, <<>>, fn message, acc ->
-            message_length = Utils.int_to_bytes(byte_size(message.message_data)+16, 4)
+            message_length = Utils.int_to_bytes(byte_size(message.message_data)+16)
 
             <<acc::binary, message_length::binary, message.sender_id_hash::binary, message.message_data::binary>>
           end)

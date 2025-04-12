@@ -13,6 +13,14 @@ type KeyPair struct {
 	PrivateKey []byte
 }
 
+func (k *KeyPair) IsValid() bool {
+	if len(k.PublicKey) != 32 || len(k.PrivateKey) != 32 {
+		return false
+	}
+
+	return true
+}
+
 func GenerateKeyPair() (KeyPair, error) {
 	priv := make([]byte, 32)
 	if _, err := rand.Read(priv); err != nil {

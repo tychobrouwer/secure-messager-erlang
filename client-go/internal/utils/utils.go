@@ -1,19 +1,16 @@
 package utils
 
 const (
-	PACKET_LENGTH_NR_BYTES = 4
+	PACKET_LENGTH_NR_BYTES = 8
 )
 
-func IntToBytes(i int) []byte {
+func IntToBytes(i int64) []byte {
 	b := make([]byte, PACKET_LENGTH_NR_BYTES)
 	for j := range PACKET_LENGTH_NR_BYTES {
 		b[j] = byte(i >> (8 * (PACKET_LENGTH_NR_BYTES - j - 1)))
 	}
-	return b
-}
 
-func IntToBytesLength() int {
-	return 4
+	return b
 }
 
 func BytesToInt(b []byte) int {

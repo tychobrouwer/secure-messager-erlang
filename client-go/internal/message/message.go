@@ -138,9 +138,9 @@ func (m *Message) SenderIDHash() []byte {
 }
 
 func (m *Message) Payload() []byte {
-	data := make([]byte, 0, 16+len(m.header.publicKey)+4+len(m.encryptedMessage)+len(m.hash))
+	data := make([]byte, 0, 16+len(m.header.publicKey)+utils.PACKET_LENGTH_NR_BYTES+len(m.encryptedMessage)+len(m.hash))
 	data = append(data, m.header.publicKey...)
-	data = append(data, utils.IntToBytes(m.header.index)...)
+	data = append(data, utils.IntToBytes(int64(m.header.index))...)
 	data = append(data, m.encryptedMessage...)
 	data = append(data, hashToBytes(m.hash)...)
 

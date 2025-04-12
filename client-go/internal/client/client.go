@@ -4,27 +4,30 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"client-go/internal/crypt"
 	"client-go/internal/message"
 	"client-go/internal/ratchet"
+	"client-go/internal/sqlite"
 	"client-go/internal/tcpclient"
 	"client-go/internal/utils"
 )
 
 type ReceiveMessagePayload struct {
-	ContactIDHash  []byte
-	StartTimestamp int
+	ContactIDHash     []byte
+	StartingTimestamp int64
 }
 
 func (m *ReceiveMessagePayload) payload() []byte {
-	if m.ContactIDHash == nil && m.StartTimestamp == 0 {
+	if m.ContactIDHash == nil && m.StartingTimestamp == 0 {
 		return nil
 	} else if m.ContactIDHash == nil {
-		return utils.IntToBytes(m.StartTimestamp)
+		return utils.IntToBytes(m.StartingTimestamp)
 	} else {
-		return append(m.ContactIDHash, utils.IntToBytes(m.StartTimestamp)...)
+		return append(m.ContactIDHash, utils.IntToBytes(m.StartingTimestamp)...)
 	}
 }
 
@@ -34,11 +37,12 @@ type Contact struct {
 }
 
 type Client struct {
-	UserID    []byte
-	Password  []byte
-	TCPServer *tcpclient.TCPServer
-	KeyPair   crypt.KeyPair
-	contacts  []Contact
+	UserID              []byte
+	Password            []byte
+	TCPServer           *tcpclient.TCPServer
+	KeyPair             crypt.KeyPair
+	LastPolledTimestamp int64
+	contacts            []Contact
 }
 
 func getContactByIDHash(contacts []Contact, contactID []byte) *Contact {
@@ -51,22 +55,42 @@ func getContactByIDHash(contacts []Contact, contactID []byte) *Contact {
 	return nil
 }
 
-func NewClient(userID, password []byte, server *tcpclient.TCPServer) *Client {
+func NewClient(server *tcpclient.TCPServer) *Client {
 	return &Client{
-		UserID:    userID,
-		Password:  password,
 		TCPServer: server,
 		contacts:  []Contact{},
 	}
 }
 
+func (c *Client) UpdateClient(username, password []byte) *Client {
+	c.UserID = username
+	c.Password = password
+
+	return c
+}
+
+func (c *Client) LoadKeyPair(db *sql.DB) error {
+	keypair, err := sqlite.GetUserKeyPair(db)
+
+	if err != nil || !keypair.IsValid() {
+		keypair, err = crypt.GenerateKeyPair()
+		if err != nil {
+			return err
+		}
+
+		err = sqlite.SetUserKeyPair(db, keypair)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.KeyPair = keypair
+
+	return nil
+}
+
 func (c *Client) Login() error {
 	userIDHash := md5.Sum([]byte(c.UserID))
-
-	c.KeyPair = crypt.KeyPair{
-		PublicKey:  []byte{121, 217, 135, 191, 103, 184, 203, 176, 121, 232, 253, 181, 214, 248, 167, 181, 246, 141, 205, 147, 165, 194, 165, 54, 162, 242, 253, 20, 115, 216, 248, 121},
-		PrivateKey: []byte{134, 140, 111, 206, 27, 217, 225, 251, 60, 12, 176, 148, 185, 156, 25, 220, 151, 201, 163, 6, 161, 253, 169, 56, 37, 210, 188, 71, 145, 106, 78, 3},
-	}
 
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
 	if err != nil {
@@ -111,17 +135,6 @@ func (c *Client) Signup() error {
 		return err
 	}
 
-	// keypair, err := crypt.GenerateKeyPair()
-	// if err != nil {
-	// 	return err
-	// }
-	keypair := crypt.KeyPair{
-		PublicKey:  []byte{121, 217, 135, 191, 103, 184, 203, 176, 121, 232, 253, 181, 214, 248, 167, 181, 246, 141, 205, 147, 165, 194, 165, 54, 162, 242, 253, 20, 115, 216, 248, 121},
-		PrivateKey: []byte{134, 140, 111, 206, 27, 217, 225, 251, 60, 12, 176, 148, 185, 156, 25, 220, 151, 201, 163, 6, 161, 253, 169, 56, 37, 210, 188, 71, 145, 106, 78, 3},
-	}
-
-	c.KeyPair = keypair
-
 	nonce := make([]byte, 12)
 	_, err = rand.Read(nonce)
 	if err != nil {
@@ -133,7 +146,7 @@ func (c *Client) Signup() error {
 		return err
 	}
 
-	payload := append(userIDHash[:], keypair.PublicKey...)
+	payload := append(userIDHash[:], c.KeyPair.PublicKey...)
 	payload = append(payload, nonce...)
 	payload = append(payload, encryptedPassword...)
 
@@ -186,6 +199,8 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 	if err != nil {
 		return nil, err
 	}
+
+	c.LastPolledTimestamp = time.Now().UnixMicro()
 
 	// No new messages
 	if len(response.Data) == 0 {
