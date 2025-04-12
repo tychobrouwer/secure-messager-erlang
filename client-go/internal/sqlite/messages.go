@@ -12,7 +12,7 @@ func SaveMessage(db *sql.DB, message *message.Message) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(message.Header.Index, message.SenderIDHash, message.PlainMessage)
+	_, err = stmt.Exec(message.Header.Index, message.ReceiverIDHash, message.SenderIDHash, message.PlainMessage)
 	if err != nil {
 		return err
 	}

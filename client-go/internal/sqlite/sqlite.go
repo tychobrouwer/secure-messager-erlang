@@ -26,6 +26,7 @@ func OpenDatabase(source string) (*sql.DB, error) {
 	CREATE TABLE IF NOT EXISTS messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		thread_index INTEGER,
+		receiver_id_hash BLOB,
 		sender_id_hash BLOB,
 		message TEXT,
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
