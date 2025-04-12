@@ -1,8 +1,8 @@
 package message
 
 import (
+	"client-go/internal/contact/ratchet"
 	"client-go/internal/crypt"
-	"client-go/internal/ratchet"
 	"client-go/internal/utils"
 	"fmt"
 	"log"
@@ -25,44 +25,29 @@ func hashToBytes(h Hash) []byte {
 }
 
 type MessageHeader struct {
-	publicKey []byte
-	index     int
-	prevCount int // Number of messages in the previous chain
+	PublicKey []byte
+	Index     int
+	PrevCount int // Number of messages in the previous chain
 }
 
 type Message struct {
-	header           MessageHeader
-	encryptedMessage []byte
-	plainMessage     []byte
+	Header           MessageHeader
+	EncryptedMessage []byte
+	PlainMessage     []byte
 	hash             Hash
-	senderIDHash     []byte
+	SenderIDHash     []byte
+	ReceiverIDHash   []byte
 }
 
-func NewPlainMessage(plainMessage []byte) *Message {
+func NewPlainMessage(senderIDHash, receiverIDHash, plainMessage []byte) *Message {
 	return &Message{
-		plainMessage: plainMessage,
+		SenderIDHash:   senderIDHash,
+		ReceiverIDHash: receiverIDHash,
+		PlainMessage:   plainMessage,
 	}
 }
 
-func NewEncryptedMessage(encryptedMessage, hash_bytes, publicKey []byte, idx int) (*Message, error) {
-	hash, err := bytesToHash(hash_bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert bytes to hash: %v", err)
-	}
-
-	return &Message{
-		header: MessageHeader{
-			publicKey: publicKey,
-			index:     idx,
-			prevCount: 0,
-		},
-		plainMessage:     nil,
-		encryptedMessage: encryptedMessage,
-		hash:             hash,
-	}, nil
-}
-
-func ParseMessagesData(data []byte) ([]*Message, error) {
+func ParseMessagesData(receiverIDHash, data []byte) ([]*Message, error) {
 	var messages []*Message
 	offset := 0
 	i := 0
@@ -83,7 +68,7 @@ func ParseMessagesData(data []byte) ([]*Message, error) {
 		messageData := data[offset : offset+messageLength]
 		offset += messageLength
 
-		message, err := parseMessageData(messageData)
+		message, err := parseMessageData(receiverIDHash, messageData)
 		if err != nil {
 			failedIdxs = append(failedIdxs, i)
 			i++
@@ -101,7 +86,7 @@ func ParseMessagesData(data []byte) ([]*Message, error) {
 	return messages, nil
 }
 
-func parseMessageData(data []byte) (*Message, error) {
+func parseMessageData(receiverIDHash, data []byte) (*Message, error) {
 	offset := 0
 
 	senderIDHash := data[offset : offset+16]
@@ -121,27 +106,24 @@ func parseMessageData(data []byte) (*Message, error) {
 	}
 
 	return &Message{
-		header: MessageHeader{
-			publicKey: publicKey,
-			index:     index,
-			prevCount: 0,
+		Header: MessageHeader{
+			PublicKey: publicKey,
+			Index:     index,
+			PrevCount: 0,
 		},
-		plainMessage:     nil,
-		encryptedMessage: encryptedMessage,
+		PlainMessage:     nil,
+		EncryptedMessage: encryptedMessage,
 		hash:             hash,
-		senderIDHash:     senderIDHash,
+		SenderIDHash:     senderIDHash,
+		ReceiverIDHash:   receiverIDHash,
 	}, nil
 }
 
-func (m *Message) SenderIDHash() []byte {
-	return m.senderIDHash
-}
-
 func (m *Message) Payload() []byte {
-	data := make([]byte, 0, 16+len(m.header.publicKey)+utils.PACKET_LENGTH_NR_BYTES+len(m.encryptedMessage)+len(m.hash))
-	data = append(data, m.header.publicKey...)
-	data = append(data, utils.IntToBytes(int64(m.header.index))...)
-	data = append(data, m.encryptedMessage...)
+	data := make([]byte, 0, 16+len(m.Header.PublicKey)+utils.PACKET_LENGTH_NR_BYTES+len(m.EncryptedMessage)+len(m.hash))
+	data = append(data, m.Header.PublicKey...)
+	data = append(data, utils.IntToBytes(int64(m.Header.Index))...)
+	data = append(data, m.EncryptedMessage...)
 	data = append(data, hashToBytes(m.hash)...)
 
 	return data
@@ -168,7 +150,7 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	messageRatchet := r.GetMessageRatchet()
 
 	// encrypt message with current message ratchet
-	encryptedMessage, hash_bytes, idx, err := messageRatchet.Encrypt(m.plainMessage)
+	encryptedMessage, hash_bytes, idx, err := messageRatchet.Encrypt(m.PlainMessage)
 	if err != nil {
 		return err
 	}
@@ -178,55 +160,51 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 		return fmt.Errorf("failed to convert bytes to hash: %v", err)
 	}
 
-	m.encryptedMessage = encryptedMessage
+	m.EncryptedMessage = encryptedMessage
 	m.hash = hash
-	m.header.index = idx
-	m.header.publicKey = r.GetPublicKey()
+	m.Header.Index = idx
+	m.Header.PublicKey = r.GetPublicKey()
 
 	return nil
 }
 
 func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// Try current ratchet first
-	if r.IsCurrentRatchet(m.header.publicKey) {
+	if r.IsCurrentRatchet(m.Header.PublicKey) {
 		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
+		plaintext, err := messageRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err == nil {
-			m.plainMessage = plaintext
+			m.PlainMessage = plaintext
 		}
 
 		return err
 	}
 
 	// Try previous ratchets if current fails
-	prevRatchet := r.GetPrevRatchet(m.header.publicKey)
+	prevRatchet := r.GetPrevRatchet(m.Header.PublicKey)
 	if prevRatchet != nil {
-		plaintext, err := prevRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
+		plaintext, err := prevRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err == nil {
-			m.plainMessage = plaintext
+			m.PlainMessage = plaintext
 			return nil
 		}
 	}
 
-	if !r.IsCurrentRatchet(m.header.publicKey) {
+	if !r.IsCurrentRatchet(m.Header.PublicKey) {
 		// Establish new ratchet chain with the sender's public key
-		r.RKCycle(m.header.publicKey)
+		r.RKCycle(m.Header.PublicKey)
 		r.UpdateState(ratchet.Receiving)
 
 		// Try decryption with new ratchet
 		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.encryptedMessage, hashToBytes(m.hash), m.header.index)
+		plaintext, err := messageRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err != nil {
 			return err
 		}
 
-		m.plainMessage = plaintext
+		m.PlainMessage = plaintext
 		return nil
 	}
 
 	return fmt.Errorf("failed to decrypt message: no matching ratchet")
-}
-
-func (m *Message) PlainMessage() []byte {
-	return m.plainMessage
 }

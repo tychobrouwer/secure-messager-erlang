@@ -23,43 +23,34 @@ func main() {
 		fmt.Println("Database opened successfully.")
 	}
 
-	c := client.NewClient(s)
-	c.LoadKeyPair(db)
+	c, err := client.NewClient(s, db)
 	if err != nil {
-		log.Fatalf("Failed to load key pair: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	} else {
-		fmt.Println("Key pair loaded successfully.")
+		fmt.Println("Client created successfully.")
 	}
 
-	username, password, err := sqlite.GetLoginData(db)
+	userID, password, err := sqlite.GetLoginData(db)
 	if err != nil {
 		fmt.Println("Signing up...")
 
-		username := []byte("test205")
+		userID := []byte("test206")
 		password := []byte("password")
-		c.UpdateClient(username, password)
 
-		err := c.Signup()
+		err := c.Signup(userID, password)
 		if err != nil {
 			log.Fatalf("Signup failed: %v", err)
 		} else {
 			fmt.Println("Signup successful.")
 		}
-
-		err = sqlite.SetLoginData(db, username, password)
-		if err != nil {
-			log.Fatalf("Failed to set login data: %v", err)
-		}
 	} else {
-		c.UpdateClient(username, password)
 
 		fmt.Println("Logging in...")
 
-		err = c.Login()
+		err = c.Login(userID, password)
 		if err != nil {
 			log.Fatalf("Login failed: %v", err)
 		} else {
-
 			fmt.Println("Login successful.")
 		}
 	}
@@ -68,7 +59,7 @@ func main() {
 
 	fmt.Println("Adding a new contact...")
 
-	err = c.AddContact([]byte("test105"))
+	err = c.AddContact([]byte("test106"))
 	if err != nil {
 		log.Fatalf("Failed to add contact: %v", err)
 	} else {
@@ -79,10 +70,14 @@ func main() {
 
 	fmt.Println("Sending a message...")
 
-	err = c.SendMessage([]byte("test105"), []byte("Hello, test105!"))
-	if err != nil {
-		log.Printf("Failed to send message: %v", err)
-	} else {
-		fmt.Println("Message sent.")
+	for range 10 {
+		err = c.SendMessage([]byte("test106"), []byte("Hello, test106!"))
+		if err != nil {
+			log.Printf("Failed to send message: %v", err)
+		} else {
+			fmt.Println("Message sent.")
+		}
+
+		time.Sleep(1 * time.Second)
 	}
 }

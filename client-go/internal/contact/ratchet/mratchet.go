@@ -32,7 +32,7 @@ func (m *MessageRatchet) Initialize(rootKey, foreignPublicKey []byte) {
 }
 
 // Generate the next message key and advance the chain
-func (m *MessageRatchet) m_CKCycle() []byte {
+func (m *MessageRatchet) CKCycle() []byte {
 	if m.chainKey == nil {
 		// Initialize chain key from root key if not done yet
 		keyMaterial, err := derive(m.rootKey, nil, []byte("Chain"), 64)
@@ -59,7 +59,7 @@ func (m *MessageRatchet) m_CKCycle() []byte {
 }
 
 func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) {
-	messageKey := m.m_CKCycle()
+	messageKey := m.CKCycle()
 	nextIndex := m.previousIndex + 1
 
 	salt := make([]byte, 64)
@@ -117,7 +117,7 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 		// Store keys for skipped messages
 		for i := m.previousIndex + 1; i < msgIdx; i++ {
 			// Generate and save message keys for all skipped indices
-			skippedKey := m.m_CKCycle()
+			skippedKey := m.CKCycle()
 			m.skippedMessageKeys[i] = skippedKey
 		}
 	}
@@ -129,7 +129,7 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 		return nil, fmt.Errorf("message index already processed: %d", msgIdx)
 	} else {
 		// Need to advance to this index
-		messageKey = m.m_CKCycle()
+		messageKey = m.CKCycle()
 	}
 
 	// Update previous index after successful generation

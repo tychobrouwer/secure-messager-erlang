@@ -25,17 +25,18 @@ func OpenDatabase(source string) (*sql.DB, error) {
 
 	CREATE TABLE IF NOT EXISTS messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		sender TEXT,
-		receiver TEXT,
+		thread_index INTEGER,
+		sender_id_hash BLOB,
 		message TEXT,
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(sender) REFERENCES contacts(id)
+		UNIQUE(sender, thread_index) ON CONFLICT REPLACE
 	);
 
 	CREATE TABLE IF NOT EXISTS contacts (
 		id TEXT PRIMARY KEY,
-		name TEXT,
-		public_key TEXT,
+		id_hash BLOB,
+		ratchet BLOB,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	`

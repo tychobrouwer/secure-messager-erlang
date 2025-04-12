@@ -23,39 +23,30 @@ func main() {
 		fmt.Println("Database opened successfully.")
 	}
 
-	c := client.NewClient(s)
-	c.LoadKeyPair(db)
+	c, err := client.NewClient(s, db)
 	if err != nil {
-		log.Fatalf("Failed to load key pair: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	} else {
-		fmt.Println("Key pair loaded successfully.")
+		fmt.Println("Client created successfully.")
 	}
 
-	username, password, err := sqlite.GetLoginData(db)
+	userID, password, err := sqlite.GetLoginData(db)
 	if err != nil {
 		fmt.Println("Signing up...")
 
-		username := []byte("test105")
+		userID := []byte("test106")
 		password := []byte("password")
-		c.UpdateClient(username, password)
 
-		err := c.Signup()
+		err := c.Signup(userID, password)
 		if err != nil {
 			log.Fatalf("Signup failed: %v", err)
 		} else {
 			fmt.Println("Signup successful.")
 		}
-
-		err = sqlite.SetLoginData(db, username, password)
-		if err != nil {
-			log.Fatalf("Failed to set login data: %v", err)
-		}
 	} else {
-		c.UpdateClient(username, password)
-
 		fmt.Println("Logging in...")
 
-		err = c.Login()
+		err = c.Login(userID, password)
 		if err != nil {
 			log.Fatalf("Login failed: %v", err)
 		} else {
@@ -75,7 +66,7 @@ func main() {
 		}
 
 		for i := range messages {
-			fmt.Printf("Received message: %s\n", messages[i].PlainMessage())
+			fmt.Printf("Received message: %s\n", messages[i].PlainMessage)
 		}
 
 		time.Sleep(1 * time.Second)

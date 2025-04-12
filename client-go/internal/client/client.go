@@ -1,16 +1,16 @@
 package client
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"time"
 
+	"client-go/internal/contact"
+	"client-go/internal/contact/message"
+	"client-go/internal/contact/ratchet"
 	"client-go/internal/crypt"
-	"client-go/internal/message"
-	"client-go/internal/ratchet"
 	"client-go/internal/sqlite"
 	"client-go/internal/tcpclient"
 	"client-go/internal/utils"
@@ -31,46 +31,37 @@ func (m *ReceiveMessagePayload) payload() []byte {
 	}
 }
 
-type Contact struct {
-	UserID    []byte
-	DHRatchet *ratchet.DHRatchet
-}
-
 type Client struct {
-	UserID              []byte
-	Password            []byte
+	IDHash              []byte
 	TCPServer           *tcpclient.TCPServer
+	DB                  *sql.DB
 	KeyPair             crypt.KeyPair
+	contacts            []*contact.Contact
 	LastPolledTimestamp int64
-	contacts            []Contact
 }
 
-func getContactByIDHash(contacts []Contact, contactID []byte) *Contact {
-	for i := range contacts {
-		if bytes.Equal(contacts[i].UserID, contactID) {
-			return &contacts[i]
-		}
-	}
-
-	return nil
-}
-
-func NewClient(server *tcpclient.TCPServer) *Client {
-	return &Client{
+func NewClient(server *tcpclient.TCPServer, db *sql.DB) (*Client, error) {
+	client := &Client{
 		TCPServer: server,
-		contacts:  []Contact{},
+		DB:        db,
+		contacts:  []*contact.Contact{},
 	}
+
+	err := client.loadKeyPair()
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.loadContacts()
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
-func (c *Client) UpdateClient(username, password []byte) *Client {
-	c.UserID = username
-	c.Password = password
-
-	return c
-}
-
-func (c *Client) LoadKeyPair(db *sql.DB) error {
-	keypair, err := sqlite.GetUserKeyPair(db)
+func (c *Client) loadKeyPair() error {
+	keypair, err := sqlite.GetUserKeyPair(c.DB)
 
 	if err != nil || !keypair.IsValid() {
 		keypair, err = crypt.GenerateKeyPair()
@@ -78,7 +69,7 @@ func (c *Client) LoadKeyPair(db *sql.DB) error {
 			return err
 		}
 
-		err = sqlite.SetUserKeyPair(db, keypair)
+		err = sqlite.SetUserKeyPair(c.DB, keypair)
 		if err != nil {
 			return err
 		}
@@ -89,8 +80,8 @@ func (c *Client) LoadKeyPair(db *sql.DB) error {
 	return nil
 }
 
-func (c *Client) Login() error {
-	userIDHash := md5.Sum([]byte(c.UserID))
+func (c *Client) Login(userID, password []byte) error {
+	userIDHash := md5.Sum([]byte(userID))
 
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
 	if err != nil {
@@ -103,7 +94,7 @@ func (c *Client) Login() error {
 		return err
 	}
 
-	encryptedPassword, err := crypt.EncryptAES(response.Data, c.Password, nonce)
+	encryptedPassword, err := crypt.EncryptAES(response.Data, password, nonce)
 	if err != nil {
 		return err
 	}
@@ -123,12 +114,16 @@ func (c *Client) Login() error {
 
 	c.TCPServer.SetAuthToken(authToken)
 	c.TCPServer.SetAuthID(userIDHash)
+	err = sqlite.SetLoginData(c.DB, userID, password)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (c *Client) Signup() error {
-	userIDHash := md5.Sum([]byte(c.UserID))
+func (c *Client) Signup(userID, password []byte) error {
+	userIDHash := md5.Sum([]byte(userID))
 
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
 	if err != nil {
@@ -141,7 +136,7 @@ func (c *Client) Signup() error {
 		return err
 	}
 
-	encryptedPassword, err := crypt.EncryptAES(response.Data, c.Password, nonce)
+	encryptedPassword, err := crypt.EncryptAES(response.Data, password, nonce)
 	if err != nil {
 		return err
 	}
@@ -163,6 +158,10 @@ func (c *Client) Signup() error {
 
 	c.TCPServer.SetAuthToken(authToken)
 	c.TCPServer.SetAuthID(userIDHash)
+	err = sqlite.SetLoginData(c.DB, userID, password)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -170,12 +169,12 @@ func (c *Client) Signup() error {
 func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	contactIDHash := md5.Sum([]byte(contactID))
 
-	contact := getContactByIDHash(c.contacts, contactIDHash[:])
+	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
 	if contact == nil {
 		return fmt.Errorf("contact not found")
 	}
 
-	message := message.NewPlainMessage(plainMessage)
+	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
 	message.Encrypt(contact.DHRatchet)
 
 	payload := append(contactIDHash[:], message.Payload()...)
@@ -184,6 +183,9 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	if err != nil {
 		return err
 	}
+
+	sqlite.SaveMessage(c.DB, message)
+	sqlite.UpdateContact(c.DB, contact)
 
 	return nil
 }
@@ -211,29 +213,33 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 		return nil, fmt.Errorf("invalid message format")
 	}
 
-	messages, err := message.ParseMessagesData(response.Data)
+	messages, err := message.ParseMessagesData(c.IDHash, response.Data)
 	if err != nil {
 		return messages, fmt.Errorf("failed to parse message data: %v", err)
 	}
 
 	failedIdxs := []int{}
 	for i := range messages {
-		senderIDHash := messages[i].SenderIDHash()
+		senderIDHash := messages[i].SenderIDHash
 
-		contact := getContactByIDHash(c.contacts, senderIDHash)
-		if contact == nil {
-			c.AddContactByHash(senderIDHash, ratchet.Receiving)
-			contact = getContactByIDHash(c.contacts, senderIDHash)
+		mContact := contact.GetContactByIDHash(c.contacts, senderIDHash)
+		if mContact == nil {
+			c.addContactByHash(senderIDHash, ratchet.Receiving)
+			mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
 		}
 
 		// Decrypt message
-		err = messages[i].Decrypt(contact.DHRatchet)
+		err = messages[i].Decrypt(mContact.DHRatchet)
 		if err != nil {
 			fmt.Printf("Failed to decrypt message: %v\n", err)
 
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
+
+		// Save decrypted message
+		sqlite.SaveMessage(c.DB, messages[i])
+		sqlite.UpdateContact(c.DB, mContact)
 	}
 
 	if len(failedIdxs) > 0 {
@@ -241,16 +247,27 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 	}
 
 	return messages, nil
+}
 
+func (c *Client) loadContacts() error {
+	contacts, err := sqlite.GetContacts(c.DB)
+	if err != nil {
+		return err
+	}
+
+	for i := range contacts {
+		c.contacts = append(c.contacts, &contacts[i])
+	}
+	return nil
 }
 
 func (c *Client) AddContact(contactID []byte) error {
 	contactIDHash := md5.Sum([]byte(contactID))
 
-	return c.AddContactByHash(contactIDHash[:], ratchet.Sending)
+	return c.addContactByHash(contactIDHash[:], ratchet.Sending)
 }
 
-func (c *Client) AddContactByHash(contactIDHash []byte, initState ratchet.RatchetState) error {
+func (c *Client) addContactByHash(contactIDHash []byte, initState ratchet.RatchetState) error {
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash)
 	if err != nil {
 		return err
@@ -258,12 +275,13 @@ func (c *Client) AddContactByHash(contactIDHash []byte, initState ratchet.Ratche
 
 	fmt.Printf("Adding contact: %x\n", contactIDHash)
 
-	contact := Contact{
-		UserID:    contactIDHash[:],
-		DHRatchet: ratchet.NewDHRatchet(c.KeyPair, response.Data, initState),
-	}
-
+	contact := contact.NewContact(contactIDHash[:], c.KeyPair, response.Data, initState)
 	c.contacts = append(c.contacts, contact)
+
+	err = sqlite.AddContact(c.DB, contactIDHash, contact.DHRatchet)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

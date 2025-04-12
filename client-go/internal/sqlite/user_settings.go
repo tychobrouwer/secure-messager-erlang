@@ -50,7 +50,7 @@ func GetUserKeyPair(db *sql.DB) (crypt.KeyPair, error) {
 	return keypair, nil
 }
 
-func SetLoginData(db *sql.DB, username, password []byte) error {
+func SetLoginData(db *sql.DB, userID, password []byte) error {
 	// Insert or update the user login data in the database
 	stmt, err := db.Prepare("INSERT OR REPLACE INTO user_settings (key, value) VALUES (?, ?)")
 	if err != nil {
@@ -58,7 +58,7 @@ func SetLoginData(db *sql.DB, username, password []byte) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec("username", username)
+	_, err = stmt.Exec("username", userID)
 	if err != nil {
 		return err
 	}
