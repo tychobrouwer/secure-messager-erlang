@@ -1,48 +1,48 @@
 package sqlite
 
 import (
-	"client-go/internal/contact/message"
-	"database/sql"
+  "client-go/internal/contact/message"
+  "database/sql"
 )
 
 func SaveMessage(db *sql.DB, message *message.Message) error {
-	stmt, err := db.Prepare("INSERT INTO messages (thread_index, sender, message) VALUES (?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
+  stmt, err := db.Prepare("INSERT INTO messages (thread_index, sender, message) VALUES (?, ?, ?)")
+  if err != nil {
+    return err
+  }
+  defer stmt.Close()
 
-	_, err = stmt.Exec(message.Header.Index, message.ReceiverIDHash, message.SenderIDHash, message.PlainMessage)
-	if err != nil {
-		return err
-	}
+  _, err = stmt.Exec(message.Header.Index, message.ReceiverIDHash, message.SenderIDHash, message.PlainMessage)
+  if err != nil {
+    return err
+  }
 
-	return nil
+  return nil
 }
 
 func GetMessages(db *sql.DB, senderID []byte) ([]message.Message, error) {
-	var messages []message.Message
+  var messages []message.Message
 
-	stmt, err := db.Prepare("SELECT sender, message FROM messages WHERE sender = ?")
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
+  stmt, err := db.Prepare("SELECT sender, message FROM messages WHERE sender = ?")
+  if err != nil {
+    return nil, err
+  }
+  defer stmt.Close()
 
-	rows, err := stmt.Query(senderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+  rows, err := stmt.Query(senderID)
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
 
-	for rows.Next() {
-		var msg message.Message
-		err = rows.Scan(&msg.SenderIDHash, &msg.PlainMessage)
-		if err != nil {
-			return nil, err
-		}
-		messages = append(messages, msg)
-	}
+  for rows.Next() {
+    var msg message.Message
+    err = rows.Scan(&msg.SenderIDHash, &msg.PlainMessage)
+    if err != nil {
+      return nil, err
+    }
+    messages = append(messages, msg)
+  }
 
-	return messages, nil
+  return messages, nil
 }
