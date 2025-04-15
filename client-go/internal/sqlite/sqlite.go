@@ -19,8 +19,8 @@ func OpenDatabase(source string) (*sql.DB, error) {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT,
     value TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAM,
+		UNIQUE(key) ON CONFLICT REPLACE
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -30,7 +30,7 @@ func OpenDatabase(source string) (*sql.DB, error) {
     sender_id_hash BLOB,
     message TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(sender_id_hash) REFERENCES contacts(id_hash)
+    FOREIGN KEY(sender_id_hash) REFERENCES contacts(id_hash),
     UNIQUE(sender_id_hash, thread_index) ON CONFLICT REPLACE
   );
 

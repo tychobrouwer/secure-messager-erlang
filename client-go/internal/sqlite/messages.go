@@ -1,12 +1,12 @@
 package sqlite
 
 import (
-  "client-go/internal/contact/message"
-  "database/sql"
+	"client-go/internal/contact/message"
+	"database/sql"
 )
 
 func SaveMessage(db *sql.DB, message *message.Message) error {
-  stmt, err := db.Prepare("INSERT INTO messages (thread_index, sender, message) VALUES (?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO messages (thread_index, receiver_id_hash, sender_id_hash, message) VALUES (?, ?, ?, ?)")
   if err != nil {
     return err
   }

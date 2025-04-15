@@ -83,8 +83,9 @@ func (c *Client) loadKeyPair() error {
 
 func (c *Client) Login(userID, password []byte) error {
 	userIDHash := md5.Sum([]byte(userID))
+	c.IDHash = userIDHash[:]
 
-	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, c.IDHash)
 	if err != nil {
 		return err
 	}
@@ -100,7 +101,7 @@ func (c *Client) Login(userID, password []byte) error {
 		return err
 	}
 
-	payload := append(userIDHash[:], nonce...)
+	payload := append(c.IDHash, nonce...)
 	payload = append(payload, encryptedPassword...)
 
 	response, err = c.TCPServer.SendReceive(tcpclient.ReqLogin, payload)
@@ -125,8 +126,9 @@ func (c *Client) Login(userID, password []byte) error {
 
 func (c *Client) Signup(userID, password []byte) error {
 	userIDHash := md5.Sum([]byte(userID))
+	c.IDHash = userIDHash[:]
 
-	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, userIDHash[:])
+	response, err := c.TCPServer.SendReceive(tcpclient.ReqKey, c.IDHash)
 	if err != nil {
 		return err
 	}
@@ -142,7 +144,7 @@ func (c *Client) Signup(userID, password []byte) error {
 		return err
 	}
 
-	payload := append(userIDHash[:], c.KeyPair.PublicKey...)
+	payload := append(c.IDHash, c.KeyPair.PublicKey...)
 	payload = append(payload, nonce...)
 	payload = append(payload, encryptedPassword...)
 
@@ -174,6 +176,8 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 	if contact == nil {
 		return fmt.Errorf("contact not found")
 	}
+
+	fmt.Printf("IDHash: %x\n", c.IDHash)
 
 	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
 	message.Encrypt(contact.DHRatchet)
@@ -239,8 +243,15 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 		}
 
 		// Save decrypted message
-		sqlite.SaveMessage(c.DB, messages[i])
-		sqlite.UpdateContact(c.DB, mContact)
+		err = sqlite.SaveMessage(c.DB, messages[i])
+		if err != nil {
+			fmt.Printf("Failed to save message in db: %v\n", err)
+		}
+
+		err = sqlite.UpdateContact(c.DB, mContact)
+		if err != nil {
+			fmt.Printf("Failed to update contact in db: %v\n", err)
+		}
 	}
 
 	if len(failedIdxs) > 0 {
