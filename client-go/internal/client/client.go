@@ -177,8 +177,6 @@ func (c *Client) SendMessage(contactID, plainMessage []byte) error {
 		return fmt.Errorf("contact not found")
 	}
 
-	fmt.Printf("IDHash: %x\n", c.IDHash)
-
 	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
 	message.Encrypt(contact.DHRatchet)
 
