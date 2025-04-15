@@ -30,8 +30,8 @@ func OpenDatabase(source string) (*sql.DB, error) {
     sender_id_hash BLOB,
     message TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(sender) REFERENCES contacts(id)
-    UNIQUE(sender, thread_index) ON CONFLICT REPLACE
+    FOREIGN KEY(sender_id_hash) REFERENCES contacts(id_hash)
+    UNIQUE(sender_id_hash, thread_index) ON CONFLICT REPLACE
   );
 
   CREATE TABLE IF NOT EXISTS contacts (

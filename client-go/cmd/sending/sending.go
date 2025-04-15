@@ -34,7 +34,7 @@ func main() {
   if err != nil {
     fmt.Println("Signing up...")
 
-    userID := []byte("test206")
+    userID := []byte("test8")
     password := []byte("password")
 
     err := c.Signup(userID, password)
@@ -44,7 +44,6 @@ func main() {
       fmt.Println("Signup successful.")
     }
   } else {
-
     fmt.Println("Logging in...")
 
     err = c.Login(userID, password)
@@ -59,7 +58,7 @@ func main() {
 
   fmt.Println("Adding a new contact...")
 
-  err = c.AddContact([]byte("test106"))
+  err = c.AddContact([]byte("test7"))
   if err != nil {
     log.Fatalf("Failed to add contact: %v", err)
   } else {
@@ -71,7 +70,7 @@ func main() {
   fmt.Println("Sending a message...")
 
   for range 10 {
-    err = c.SendMessage([]byte("test106"), []byte("Hello, test106!"))
+    err = c.SendMessage([]byte("test7"), []byte("Hello!"))
     if err != nil {
       log.Printf("Failed to send message: %v", err)
     } else {

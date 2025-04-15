@@ -10,57 +10,57 @@ import (
 )
 
 type MessageRatchet struct {
-  foreignPublicKey   []byte
-  rootKey            []byte
-  chainKey           []byte         // Current chain key (for deriving the next keys)
-  skippedMessageKeys map[int][]byte // Keys for skipped messages
-  maxSkip            int            // Maximum number of message keys to store
-  previousIndex      int            // Last received message index
+  ForeignPublicKey   []byte
+  RootKey            []byte
+  ChainKey           []byte         // Current chain key (for deriving the next keys)
+  SkippedMessageKeys map[int][]byte // Keys for skipped messages
+  MaxSkip            int            // Maximum number of message keys to store
+  PreviousIndex      int            // Last received message index
 }
 
 func NewMessageRatchet() *MessageRatchet {
   return &MessageRatchet{
-    skippedMessageKeys: make(map[int][]byte),
-    maxSkip:            1000, // Configurable upper limit
-    previousIndex:      -1,   // Start with -1
+    SkippedMessageKeys: make(map[int][]byte),
+    MaxSkip:            100,
+    PreviousIndex:      -1,
   }
 }
 
 func (m *MessageRatchet) Initialize(rootKey, foreignPublicKey []byte) {
-  m.rootKey = rootKey
-  m.foreignPublicKey = foreignPublicKey
+  m.RootKey = rootKey
+  m.ForeignPublicKey = foreignPublicKey
 }
 
 // Generate the next message key and advance the chain
 func (m *MessageRatchet) CKCycle() []byte {
-  if m.chainKey == nil {
+  if m.ChainKey == nil {
     // Initialize chain key from root key if not done yet
-    keyMaterial, err := derive(m.rootKey, nil, []byte("Chain"), 64)
+    keyMaterial, err := derive(m.RootKey, nil, []byte("Chain"), 64)
     if err != nil {
       log.Printf("Failed to generate key material: %v", err)
       return nil
     }
 
-    m.chainKey = keyMaterial[32:] // Second half becomes the chain key
+    m.ChainKey = keyMaterial[32:] // Second half becomes the chain key
     return keyMaterial[:32]       // First half becomes the message key
   }
 
   // Normal chain key advancement
-  keyMaterial, err := derive(m.chainKey, nil, []byte("Chain"), 64)
+  keyMaterial, err := derive(m.ChainKey, nil, []byte("Chain"), 64)
   if err != nil {
     log.Printf("Failed to generate key material: %v", err)
     return nil
   }
 
   messageKey := keyMaterial[:32] // First half for encryption
-  m.chainKey = keyMaterial[32:]  // Second half for next iteration
+  m.ChainKey = keyMaterial[32:]  // Second half for next iteration
 
   return messageKey
 }
 
 func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) {
   messageKey := m.CKCycle()
-  nextIndex := m.previousIndex + 1
+  nextIndex := m.PreviousIndex + 1
 
   salt := make([]byte, 64)
   derivedKey, err := derive(messageKey, salt, nil, 64)
@@ -84,16 +84,16 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
   mac.Write(append(nonce, ciphertext...))
   macHash := mac.Sum(nil)
 
-  m.previousIndex = nextIndex
+  m.PreviousIndex = nextIndex
 
   return append(nonce, ciphertext...), macHash, nextIndex, nil
 }
 
 func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte, error) {
   // Check if this is a skipped message key we already saved
-  if msgKey, exists := m.skippedMessageKeys[msgIdx]; exists {
+  if msgKey, exists := m.SkippedMessageKeys[msgIdx]; exists {
     // Delete after use
-    defer delete(m.skippedMessageKeys, msgIdx)
+    defer delete(m.SkippedMessageKeys, msgIdx)
 
     // Use the skipped message key to decrypt
     return m.decryptWithKey(ciphertext, macHash, msgKey)
@@ -105,27 +105,27 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
   }
 
   // If message from the future (higher index than expected)
-  if msgIdx > m.previousIndex+1 {
+  if msgIdx > m.PreviousIndex+1 {
     // Calculate how many messages were skipped
-    skipped := msgIdx - (m.previousIndex + 1)
+    skipped := msgIdx - (m.PreviousIndex + 1)
 
     // Enforce maximum skip limit
-    if skipped > m.maxSkip {
+    if skipped > m.MaxSkip {
       return nil, fmt.Errorf("too many skipped messages: %d", skipped)
     }
 
     // Store keys for skipped messages
-    for i := m.previousIndex + 1; i < msgIdx; i++ {
+    for i := m.PreviousIndex + 1; i < msgIdx; i++ {
       // Generate and save message keys for all skipped indices
       skippedKey := m.CKCycle()
-      m.skippedMessageKeys[i] = skippedKey
+      m.SkippedMessageKeys[i] = skippedKey
     }
   }
 
   // Get or generate the message key for this index
   var messageKey []byte
 
-  if msgIdx <= m.previousIndex {
+  if msgIdx <= m.PreviousIndex {
     return nil, fmt.Errorf("message index already processed: %d", msgIdx)
   } else {
     // Need to advance to this index
@@ -133,7 +133,7 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
   }
 
   // Update previous index after successful generation
-  m.previousIndex = msgIdx
+  m.PreviousIndex = msgIdx
 
   // Decrypt using the message key
   return m.decryptWithKey(ciphertext, macHash, messageKey)

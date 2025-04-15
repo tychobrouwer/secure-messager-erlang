@@ -15,12 +15,12 @@ const (
 )
 
 type DHRatchet struct {
-  keyPair          crypt.KeyPair
-  rootKey          []byte
-  childKey         []byte
-  currentRatchet   *MessageRatchet
-  previousRatchets []MessageRatchet
-  state            RatchetState
+  KeyPair          crypt.KeyPair
+  RootKey          []byte
+  ChildKey         []byte
+  CurrentRatchet   *MessageRatchet
+  PreviousRatchets []MessageRatchet
+  State            RatchetState
 }
 
 func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte, initState RatchetState) *DHRatchet {
@@ -35,11 +35,11 @@ func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte, initState Ratc
   initGob()
 
   return &DHRatchet{
-    keyPair:          keypair,
-    rootKey:          rootKey,
-    currentRatchet:   messageRatchet,
-    previousRatchets: []MessageRatchet{},
-    state:            initState,
+    KeyPair:          keypair,
+    RootKey:          rootKey,
+    CurrentRatchet:   messageRatchet,
+    PreviousRatchets: []MessageRatchet{},
+    State:            initState,
   }
 }
 
@@ -67,46 +67,46 @@ func (r *DHRatchet) Unmarshal(data []byte) error {
 
 func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
   if foreignPublicKey == nil {
-    foreignPublicKey = r.currentRatchet.foreignPublicKey
+    foreignPublicKey = r.CurrentRatchet.ForeignPublicKey
   }
 
   // Store current ratchet before creating a new one
-  if len(r.currentRatchet.foreignPublicKey) > 0 {
-    r.previousRatchets = append(r.previousRatchets, *r.currentRatchet)
+  if len(r.CurrentRatchet.ForeignPublicKey) > 0 {
+    r.PreviousRatchets = append(r.PreviousRatchets, *r.CurrentRatchet)
 
     // Limit the number of stored previous ratchets (optional)
-    if len(r.previousRatchets) > 5 {
-      r.previousRatchets = r.previousRatchets[len(r.previousRatchets)-5:]
+    if len(r.PreviousRatchets) > 5 {
+      r.PreviousRatchets = r.PreviousRatchets[len(r.PreviousRatchets)-5:]
     }
   }
 
-  dhKey, err := crypt.GenerateSharedSecret(r.keyPair, foreignPublicKey)
+  dhKey, err := crypt.GenerateSharedSecret(r.KeyPair, foreignPublicKey)
   if err != nil {
     log.Printf("Failed to generate shared secret: %v", err)
     return
   }
 
-  keyMaterial, err := derive(r.rootKey, dhKey, []byte("Ratchet"), 64)
+  keyMaterial, err := derive(r.RootKey, dhKey, []byte("Ratchet"), 64)
   if err != nil {
     log.Printf("Failed to generate key material: %v", err)
     return
   }
 
-  r.rootKey = keyMaterial[:32]
-  r.childKey = keyMaterial[32:]
+  r.RootKey = keyMaterial[:32]
+  r.ChildKey = keyMaterial[32:]
 
   // Create a new message ratchet with proper initialization
-  r.currentRatchet = NewMessageRatchet()
-  r.currentRatchet.Initialize(r.rootKey, foreignPublicKey)
+  r.CurrentRatchet = NewMessageRatchet()
+  r.CurrentRatchet.Initialize(r.RootKey, foreignPublicKey)
 }
 
 func (r *DHRatchet) IsCurrentRatchet(publicKey []byte) bool {
-  return bytes.Equal(r.currentRatchet.foreignPublicKey, publicKey)
+  return bytes.Equal(r.CurrentRatchet.ForeignPublicKey, publicKey)
 }
 
 func (r *DHRatchet) GetPrevRatchet(publicKey []byte) *MessageRatchet {
-  for _, ratchet := range r.previousRatchets {
-    if bytes.Equal(ratchet.foreignPublicKey, publicKey) {
+  for _, ratchet := range r.PreviousRatchets {
+    if bytes.Equal(ratchet.ForeignPublicKey, publicKey) {
       return &ratchet
     }
   }
@@ -115,25 +115,25 @@ func (r *DHRatchet) GetPrevRatchet(publicKey []byte) *MessageRatchet {
 }
 
 func (r *DHRatchet) GetPublicKey() []byte {
-  return r.keyPair.PublicKey
+  return r.KeyPair.PublicKey
 }
 
 func (r *DHRatchet) UpdateKeyPair(keypair crypt.KeyPair) {
-  r.keyPair = keypair
+  r.KeyPair = keypair
 }
 
 func (r *DHRatchet) UpdateState(state RatchetState) {
-  r.state = state
+  r.State = state
 }
 
 func (r *DHRatchet) IsReceiving() bool {
-  return r.state == Receiving
+  return r.State == Receiving
 }
 
 func (r *DHRatchet) IsSending() bool {
-  return r.state == Sending
+  return r.State == Sending
 }
 
 func (r *DHRatchet) GetMessageRatchet() *MessageRatchet {
-  return r.currentRatchet
+  return r.CurrentRatchet
 }
