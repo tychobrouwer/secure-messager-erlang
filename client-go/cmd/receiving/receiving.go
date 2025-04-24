@@ -33,7 +33,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Signing up...")
 
-		userID := []byte("test106")
+		userID := []byte("test7")
 		password := []byte("password")
 
 		err := c.Signup(userID, password)

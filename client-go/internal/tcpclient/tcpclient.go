@@ -127,50 +127,32 @@ func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (*Packet, 
 	s.pendingResponses[packet.messageIDStr()] = responseChan
 	s.mu.Unlock()
 
-	payload, err := packet.payload(s)
+	payload, err := createPacket(messageType, data).payload(s)
 	if err != nil {
-		return nil, err
+		return &Packet{}, err
 	}
 
-	s.mu.Lock()
 	_, err = s.conn.Write(payload)
-	s.mu.Unlock()
+	if err != nil {
+		return &Packet{}, err
+	}
+
+	buffer := make([]byte, MAX_MESSAGE_SIZE)
+	n, err := s.conn.Read(buffer)
 
 	if err != nil {
-		s.mu.Lock()
-		delete(s.pendingResponses, packet.messageIDStr())
-		s.mu.Unlock()
-
-		return nil, err
+		return &Packet{}, err
 	}
 
-	select {
-	case response := <-responseChan:
-		if response.messageType == Error {
-			return nil, fmt.Errorf("server error: %s", string(response.Data))
-		}
-		return response, nil
+	packet, err := parsePacket(buffer[:n])
 
-	case <-time.After(5 * time.Second):
-		s.mu.Lock()
-		delete(s.pendingResponses, packet.messageIDStr())
-		s.mu.Unlock()
-
-		return nil, fmt.Errorf("timeout waiting for response")
+	if packet.messageType == Error {
+		return &Packet{}, fmt.Errorf("server error: %s", string(packet.Data))
 	}
-}
 
-func (s *TCPServer) Send(messageType MessageType, data []byte) error {
-	packet := createPacket(messageType, data)
-
-	payload, err := packet.payload(s)
 	if err != nil {
-		return err
+		return &Packet{}, err
 	}
-
-	s.mu.Lock()
-	_, err = s.conn.Write(payload)
-	s.mu.Unlock()
 
 	return err
 }
