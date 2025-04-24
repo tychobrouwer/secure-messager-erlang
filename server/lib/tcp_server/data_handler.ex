@@ -47,7 +47,7 @@ defmodule TCPServer.DataHandler do
       {:req_key, {_id_hash, req_id_hash}} ->
         case DbManager.Key.key(req_id_hash) do
           {:ok, key} ->
-            GenServer.call(TCPServer, {:send_data, :res_key, conn_uuid, message_id, key})
+            GenServer.call(TCPServer, {:send_data, type, conn_uuid, message_id, key})
 
           {:error, reason} ->
             GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
@@ -59,7 +59,7 @@ defmodule TCPServer.DataHandler do
         case DbManager.User.login(id_hash, nonce, hashed_password) do
           {:ok, token} ->
             GenServer.cast(TCPServer, {:update_connection, conn_uuid, id_hash})
-            GenServer.call(TCPServer, {:send_data, :res_login, conn_uuid, message_id, token})
+            GenServer.call(TCPServer, {:send_data, type, conn_uuid, message_id, token})
 
           {:error, reason} ->
             GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
@@ -71,7 +71,7 @@ defmodule TCPServer.DataHandler do
         case DbManager.User.signup(id_hash, public_key, nonce, hashed_password) do
           {:ok, token} ->
             GenServer.cast(TCPServer, {:update_connection, conn_uuid, id_hash})
-            GenServer.call(TCPServer, {:send_data, :res_signup, conn_uuid, message_id, token})
+            GenServer.call(TCPServer, {:send_data, type, conn_uuid, message_id, token})
 
           {:error, reason} ->
             GenServer.call(TCPServer, {:send_data, :error, conn_uuid, message_id, reason})
@@ -79,9 +79,9 @@ defmodule TCPServer.DataHandler do
 
       {:req_logout, {_id_hash, _data}} ->
         GenServer.cast(TCPServer, {:update_connection, conn_uuid, nil})
-        GenServer.call(TCPServer, {:send_data, :res_logout, conn_uuid, message_id, <<0>>})
+        GenServer.call(TCPServer, {:send_data, type, conn_uuid, message_id, <<0>>})
 
-      {:message, {id_hash, message_bytes}} ->
+      {:send_message, {id_hash, message_bytes}} ->
         <<receiver_id_hash::binary-size(16), message_data::binary>> = message_bytes
 
         cond do
@@ -97,7 +97,12 @@ defmodule TCPServer.DataHandler do
 
             GenServer.call(
               TCPServer,
-              {:send_data, :message, conn_uuid, message_id, message_uuid}
+              {:send_data, :send_message, conn_uuid, message_id, message_uuid}
+            )
+
+            GenServer.call(
+              TCPServer,
+              {:send_data, :recv_message, conn_uuid, message_id, message_bytes}
             )
         end
 
@@ -113,12 +118,7 @@ defmodule TCPServer.DataHandler do
             {nil, Utils.bytes_to_int(data)}
           end
 
-        Logger.info("Timestamp -> #{inspect(last_us_timestamp)}")
-
-        messages =
-          DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp)
-
-        Logger.info("Messages -> #{inspect(messages)}")
+        messages = DbManager.Message.get_messages(id_hash, sender_id_hash, last_us_timestamp)
 
         messages_bytes =
           Enum.reduce(messages, <<>>, fn message, acc ->
@@ -127,11 +127,9 @@ defmodule TCPServer.DataHandler do
             <<acc::binary, message_length::binary, message.sender_id_hash::binary, message.message_data::binary>>
           end)
 
-        Logger.info("Messages bytes -> #{inspect(messages_bytes)}")
-
         GenServer.call(
           TCPServer,
-          {:send_data, :res_messages, conn_uuid, message_id, messages_bytes}
+          {:send_data, type, conn_uuid, message_id, messages_bytes}
         )
 
       {:req_pub_key, {_id_hash, req_id_hash}} ->
@@ -139,7 +137,7 @@ defmodule TCPServer.DataHandler do
           {:ok, public_key} ->
             GenServer.call(
               TCPServer,
-              {:send_data, :res_pub_key, conn_uuid, message_id, public_key}
+              {:send_data, type, conn_uuid, message_id, public_key}
             )
 
           {:error, reason} ->

@@ -6,7 +6,6 @@ import (
 	"client-go/internal/tcpclient"
 	"fmt"
 	"log"
-	"time"
 )
 
 func main() {
@@ -50,25 +49,26 @@ func main() {
 		if err != nil {
 			log.Fatalf("Login failed: %v", err)
 		} else {
-
 			fmt.Println("Login successful.")
 		}
 	}
 
-	for {
-		receivePayload := &client.ReceiveMessagePayload{
-			StartingTimestamp: c.LastPolledTimestamp,
-		}
+	c.ListenIncomingMessages()
 
-		messages, err := c.ReceiveMessages(receivePayload)
-		if err != nil {
-			fmt.Printf("Failed to receive message: %v\n", err)
-		}
+	// for {
+	// 	receivePayload := &client.ReceiveMessagePayload{
+	// 		StartingTimestamp: c.LastPolledTimestamp,
+	// 	}
 
-		for i := range messages {
-			fmt.Printf("Received message: %s\n", messages[i].PlainMessage)
-		}
+	// 	messages, err := c.RequestMessages(receivePayload)
+	// 	if err != nil {
+	// 		fmt.Printf("Failed to receive message: %v\n", err)
+	// 	}
 
-		time.Sleep(1 * time.Second)
-	}
+	// 	for i := range messages {
+	// 		fmt.Printf("Received message: %s\n", messages[i].PlainMessage)
+	// 	}
+
+	// 	time.Sleep(1 * time.Second)
+	// }
 }

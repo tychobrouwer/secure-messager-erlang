@@ -13,20 +13,13 @@ defmodule TCPServerTest do
       :error,
       :handshake,
       :req_login,
-      :res_login,
       :req_signup,
-      :res_signup,
       :req_nonce,
-      :res_nonce,
       :message,
       :req_messages,
-      :res_messages,
       :req_uuid,
-      :res_uuid,
       :req_id,
-      :res_id,
-      :req_pub_key,
-      :res_pub_key
+      :req_pub_key
     ]
 
     for packet_type <- packet_types do

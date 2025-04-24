@@ -10,11 +10,16 @@ import (
 )
 
 type TCPServer struct {
-	conn      net.Conn
-	authID    AuthID
-	authToken AuthToken
-	mu        sync.Mutex
+	conn             net.Conn
+	authID           AuthID
+	authToken        AuthToken
+	mu               sync.Mutex
+	pendingResponses map[string]chan *Packet
+	messageHandlers  map[MessageType]MessageHandler
+	stopListener     chan struct{}
 }
+
+type MessageHandler func(*Packet)
 
 // NewTCPServer creates a new TCPServer instance.
 func NewTCPServer(address string, port int) *TCPServer {
@@ -46,43 +51,128 @@ func NewTCPServer(address string, port int) *TCPServer {
 		log.Fatalf("Failed to read handshake: %v", err)
 	}
 
-	return &TCPServer{
-		conn: conn,
+	server := &TCPServer{
+		conn:             conn,
+		pendingResponses: make(map[string]chan *Packet),
+		messageHandlers:  make(map[MessageType]MessageHandler),
+		stopListener:     make(chan struct{}),
+	}
+
+	go server.startListener()
+
+	return server
+}
+
+func (s *TCPServer) startListener() {
+	for {
+		select {
+		case <-s.stopListener:
+			return
+		default:
+			buffer := make([]byte, MAX_MESSAGE_SIZE)
+			n, err := s.conn.Read(buffer)
+
+			if err != nil {
+				if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+					log.Printf("Read timeout: %v", err)
+					continue
+				}
+
+				log.Printf("Error reading from server: %v", err)
+				continue
+			}
+
+			packet, err := parsePacket(buffer[:n])
+			if err != nil {
+				log.Printf("Error parsing packet: %v", err)
+				continue
+			}
+
+			s.mu.Lock()
+			if respChan, exists := s.pendingResponses[packet.messageIDStr()]; exists {
+				respChan <- packet
+				delete(s.pendingResponses, packet.messageIDStr())
+
+				s.mu.Unlock()
+				continue
+			}
+
+			if handler, exists := s.messageHandlers[packet.messageType]; exists {
+				s.mu.Unlock()
+				handler(packet)
+				continue
+			}
+			s.mu.Unlock()
+
+			if packet.messageType == Error {
+				log.Printf("Server error: %s", string(packet.Data))
+			}
+
+			log.Printf("No handler for message type %d", packet.messageType)
+		}
 	}
 }
 
-func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (*Packet, error) {
+func (s *TCPServer) RegisterHandler(messageType MessageType, handler MessageHandler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.messageHandlers[messageType] = handler
+}
 
-	payload, err := createPacket(messageType, data).payload(s)
+func (s *TCPServer) SendReceive(messageType MessageType, data []byte) (*Packet, error) {
+	packet := createPacket(messageType, data)
+
+	responseChan := make(chan *Packet)
+	s.mu.Lock()
+	s.pendingResponses[packet.messageIDStr()] = responseChan
+	s.mu.Unlock()
+
+	payload, err := packet.payload(s)
 	if err != nil {
-		return &Packet{}, err
+		return nil, err
 	}
 
+	s.mu.Lock()
 	_, err = s.conn.Write(payload)
-	if err != nil {
-		return &Packet{}, err
-	}
-
-	buffer := make([]byte, MAX_MESSAGE_SIZE)
-	n, err := s.conn.Read(buffer)
+	s.mu.Unlock()
 
 	if err != nil {
-		return &Packet{}, err
+		s.mu.Lock()
+		delete(s.pendingResponses, packet.messageIDStr())
+		s.mu.Unlock()
+
+		return nil, err
 	}
 
-	packet, err := parsePacket(buffer[:n])
+	select {
+	case response := <-responseChan:
+		if response.messageType == Error {
+			return nil, fmt.Errorf("server error: %s", string(response.Data))
+		}
+		return response, nil
 
-	if packet.messageType == Error {
-		return &Packet{}, fmt.Errorf("server error: %s", string(packet.Data))
+	case <-time.After(5 * time.Second):
+		s.mu.Lock()
+		delete(s.pendingResponses, packet.messageIDStr())
+		s.mu.Unlock()
+
+		return nil, fmt.Errorf("timeout waiting for response")
 	}
+}
 
+func (s *TCPServer) Send(messageType MessageType, data []byte) error {
+	packet := createPacket(messageType, data)
+
+	payload, err := packet.payload(s)
 	if err != nil {
-		return &Packet{}, err
+		return err
 	}
 
-	return packet, nil
+	s.mu.Lock()
+	_, err = s.conn.Write(payload)
+	s.mu.Unlock()
+
+	return err
 }
 
 func (s *TCPServer) SetAuthToken(token AuthToken) {
@@ -98,7 +188,12 @@ func (s *TCPServer) SetAuthID(authID AuthID) {
 }
 
 func (s *TCPServer) Close() {
+	s.stopListener <- struct{}{}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.conn.Close()
+	if s.conn != nil {
+		s.conn.Close()
+		s.conn = nil
+	}
 }

@@ -16,18 +16,13 @@ const (
 	Error
 	Handshake
 	ReqLogin
-	ResLogin
 	ReqSignup
-	ResSignup
 	ReqLogout
-	ResLogout
 	ReqKey
-	ResKey
-	Message
+	SendMessage
+	RecvMessage
 	ReqMessages
-	ResMessages
 	ReqPubKey
-	ResPubKey
 )
 
 type Packet struct {
@@ -63,6 +58,11 @@ func (p Packet) payload(s *TCPServer) ([]byte, error) {
 
 	message = append(utils.IntToBytes(int64(len(message))), message...)
 	return message, nil
+}
+
+func (p Packet) messageIDStr() string {
+	messageId := p.messageID[:]
+	return string(messageId)
 }
 
 func createPacket(messageType MessageType, data []byte) *Packet {

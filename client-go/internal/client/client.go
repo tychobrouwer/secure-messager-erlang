@@ -166,31 +166,23 @@ func (c *Client) Signup(userID, password []byte) error {
 	return nil
 }
 
-func (c *Client) SendMessage(contactID, plainMessage []byte) error {
-	contactIDHash := md5.Sum([]byte(contactID))
+func (c *Client) ListenIncomingMessages() {
+	c.TCPServer.RegisterHandler(tcpclient.RecvMessage, func(packet *tcpclient.Packet) {
+		message, err := message.ParseMessageData(c.IDHash, packet.Data)
+		if err != nil {
+			fmt.Printf("Failed to parse incoming message: %v\n", err)
+			return
+		}
 
-	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
-	if contact == nil {
-		return fmt.Errorf("contact not found")
-	}
-
-	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
-	message.Encrypt(contact.DHRatchet)
-
-	payload := append(contactIDHash[:], message.Payload()...)
-
-	_, err := c.TCPServer.SendReceive(tcpclient.Message, payload)
-	if err != nil {
-		return err
-	}
-
-	sqlite.SaveMessage(c.DB, message)
-	sqlite.UpdateContact(c.DB, contact)
-
-	return nil
+		err = c.handleIncomingMessage(message)
+		if err != nil {
+			fmt.Printf("Failed to handle incoming message: %v\n", err)
+			return
+		}
+	})
 }
 
-func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message.Message, error) {
+func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message.Message, error) {
 	if payloadData == nil {
 		payloadData = &ReceiveMessagePayload{}
 	}
@@ -220,26 +212,12 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 
 	failedIdxs := []int{}
 	for i := range messages {
-		senderIDHash := messages[i].SenderIDHash
+		err = c.handleIncomingMessage(messages[i])
 
-		mContact := contact.GetContactByIDHash(c.contacts, senderIDHash)
-		if mContact == nil {
-			c.addContactByHash(senderIDHash, ratchet.Receiving)
-			mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
-		}
-
-		// Decrypt message
-		err = messages[i].Decrypt(mContact.DHRatchet)
 		if err != nil {
-			fmt.Printf("Failed to decrypt message: %v\n", err)
-
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
-
-		// Save decrypted message
-		sqlite.SaveMessage(c.DB, messages[i])
-		sqlite.UpdateContact(c.DB, mContact)
 	}
 
 	if len(failedIdxs) > 0 {
@@ -247,6 +225,52 @@ func (c *Client) ReceiveMessages(payloadData *ReceiveMessagePayload) ([]*message
 	}
 
 	return messages, nil
+}
+
+func (c *Client) handleIncomingMessage(message *message.Message) error {
+	senderIDHash := message.SenderIDHash
+
+	mContact := contact.GetContactByIDHash(c.contacts, senderIDHash)
+	if mContact == nil {
+		c.addContactByHash(senderIDHash, ratchet.Receiving)
+		mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
+	}
+
+	// Decrypt message
+	err := message.Decrypt(mContact.DHRatchet)
+	if err != nil {
+		return err
+	}
+
+	// Save decrypted message
+	sqlite.SaveMessage(c.DB, message)
+	sqlite.UpdateContact(c.DB, mContact)
+
+	return nil
+}
+
+func (c *Client) SendMessage(contactID, plainMessage []byte) error {
+	contactIDHash := md5.Sum([]byte(contactID))
+
+	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
+	if contact == nil {
+		return fmt.Errorf("contact not found")
+	}
+
+	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
+	message.Encrypt(contact.DHRatchet)
+
+	payload := append(contactIDHash[:], message.Payload()...)
+
+	_, err := c.TCPServer.SendReceive(tcpclient.SendMessage, payload)
+	if err != nil {
+		return err
+	}
+
+	sqlite.SaveMessage(c.DB, message)
+	sqlite.UpdateContact(c.DB, contact)
+
+	return nil
 }
 
 func (c *Client) loadContacts() error {

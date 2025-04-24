@@ -44,7 +44,6 @@ func main() {
 			fmt.Println("Signup successful.")
 		}
 	} else {
-
 		fmt.Println("Logging in...")
 
 		err = c.Login(userID, password)
@@ -55,7 +54,7 @@ func main() {
 		}
 	}
 
-	time.Sleep(1 * time.Second)
+	c.ListenIncomingMessages()
 
 	fmt.Println("Adding a new contact...")
 
@@ -65,8 +64,6 @@ func main() {
 	} else {
 		fmt.Println("Contact added.")
 	}
-
-	time.Sleep(1 * time.Second)
 
 	fmt.Println("Sending a message...")
 

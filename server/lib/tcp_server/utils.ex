@@ -6,18 +6,13 @@ defmodule TCPServer.Utils do
           | :error
           | :handshake
           | :req_login
-          | :res_login
           | :req_signup
-          | :res_signup
           | :req_logout
-          | :res_logout
           | :req_key
-          | :res_key
-          | :message
+          | :send_message
+          | :recv_message
           | :req_messages
-          | :res_messages
           | :req_pub_key
-          | :res_pub_key
 
   @type packet_response_type ::
           :plain
@@ -43,18 +38,13 @@ defmodule TCPServer.Utils do
       :error -> 1
       :handshake -> 2
       :req_login -> 3
-      :res_login -> 4
-      :req_signup -> 5
-      :res_signup -> 6
-      :req_logout -> 7
-      :res_logout -> 8
-      :req_key -> 9
-      :res_key -> 10
-      :message -> 11
-      :req_messages -> 12
-      :res_messages -> 13
-      :req_pub_key -> 14
-      :res_pub_key -> 15
+      :req_signup -> 4
+      :req_logout -> 5
+      :req_key -> 6
+      :send_message -> 7
+      :recv_message -> 8
+      :req_messages -> 9
+      :req_pub_key -> 10
       _ -> nil
     end
   end
@@ -64,19 +54,14 @@ defmodule TCPServer.Utils do
       <<0>> -> :ack
       <<1>> -> :error
       <<2>> -> :handshake
-      <<3>> -> :req_login
-      <<4>> -> :res_login
+      <<4>> -> :req_login
       <<5>> -> :req_signup
-      <<6>> -> :res_signup
-      <<7>> -> :req_logout
-      <<8>> -> :res_logout
-      <<9>> -> :req_key
-      <<10>> -> :res_key
-      <<11>> -> :message
-      <<12>> -> :req_messages
-      <<13>> -> :res_messages
-      <<14>> -> :req_pub_key
-      <<15>> -> :res_pub_key
+      <<6>> -> :req_logout
+      <<7>> -> :req_key
+      <<8>> -> :send_message
+      <<9>> -> :recv_message
+      <<10>> -> :req_messages
+      <<11>> -> :req_pub_key
       _ -> nil
     end
   end

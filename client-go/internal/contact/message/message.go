@@ -68,7 +68,7 @@ func ParseMessagesData(receiverIDHash, data []byte) ([]*Message, error) {
 		messageData := data[offset : offset+messageLength]
 		offset += messageLength
 
-		message, err := parseMessageData(receiverIDHash, messageData)
+		message, err := ParseMessageData(receiverIDHash, messageData)
 		if err != nil {
 			failedIdxs = append(failedIdxs, i)
 			i++
@@ -86,7 +86,7 @@ func ParseMessagesData(receiverIDHash, data []byte) ([]*Message, error) {
 	return messages, nil
 }
 
-func parseMessageData(receiverIDHash, data []byte) (*Message, error) {
+func ParseMessageData(receiverIDHash, data []byte) (*Message, error) {
 	offset := 0
 
 	senderIDHash := data[offset : offset+16]
