@@ -221,17 +221,6 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
-
-		// Save decrypted message
-		err = sqlite.SaveMessage(c.DB, messages[i])
-		if err != nil {
-			fmt.Printf("Failed to save message in db: %v\n", err)
-		}
-
-		err = sqlite.UpdateContact(c.DB, mContact)
-		if err != nil {
-			fmt.Printf("Failed to update contact in db: %v\n", err)
-		}
 	}
 
 	if len(failedIdxs) > 0 {
@@ -257,8 +246,15 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	}
 
 	// Save decrypted message
-	sqlite.SaveMessage(c.DB, message)
-	sqlite.UpdateContact(c.DB, mContact)
+	err = sqlite.SaveMessage(c.DB, message)
+	if err != nil {
+		fmt.Printf("Failed to save message in db: %v\n", err)
+	}
+
+	err = sqlite.UpdateContact(c.DB, mContact)
+	if err != nil {
+		fmt.Printf("Failed to update contact in db: %v\n", err)
+	}
 
 	return nil
 }
