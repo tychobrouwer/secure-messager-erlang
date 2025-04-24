@@ -1,59 +1,62 @@
 package main
 
 import (
-	"client-go/internal/client"
-	"client-go/internal/sqlite"
-	"client-go/internal/tcpclient"
-	"fmt"
-	"log"
+	"client-go/internal/gioui"
+
+	"gioui.org/app"
 )
 
 func main() {
-	var err error
+	go func() {
+		gioui.NewWindow()
+	}()
 
-	fmt.Println("Starting client...")
+	// var err error
 
-	s := tcpclient.NewTCPServer("127.0.0.1", 4040)
+	// fmt.Println("Starting client...")
 
-	db, err := sqlite.OpenDatabase("test.db")
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	} else {
-		fmt.Println("Database opened successfully.")
-	}
+	// s := tcpclient.NewTCPServer("127.0.0.1", 4040)
 
-	c, err := client.NewClient(s, db)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-	} else {
-		fmt.Println("Client created successfully.")
-	}
+	// db, err := sqlite.OpenDatabase("test.db")
+	// if err != nil {
+	// 	log.Fatalf("Failed to open database: %v", err)
+	// } else {
+	// 	fmt.Println("Database opened successfully.")
+	// }
 
-	userID, password, err := sqlite.GetLoginData(db)
-	if err != nil {
-		fmt.Println("Signing up...")
+	// c, err := client.NewClient(s, db)
+	// if err != nil {
+	// 	log.Fatalf("Failed to create client: %v", err)
+	// } else {
+	// 	fmt.Println("Client created successfully.")
+	// }
 
-		userID := []byte("test7")
-		password := []byte("password")
+	// userID, password, err := sqlite.GetLoginData(db)
+	// if err != nil {
+	// 	fmt.Println("Signing up...")
 
-		err := c.Signup(userID, password)
-		if err != nil {
-			log.Fatalf("Signup failed: %v", err)
-		} else {
-			fmt.Println("Signup successful.")
-		}
-	} else {
-		fmt.Println("Logging in...")
+	// 	userID := []byte("test7")
+	// 	password := []byte("password")
 
-		err = c.Login(userID, password)
-		if err != nil {
-			log.Fatalf("Login failed: %v", err)
-		} else {
-			fmt.Println("Login successful.")
-		}
-	}
+	// 	err := c.Signup(userID, password)
+	// 	if err != nil {
+	// 		log.Fatalf("Signup failed: %v", err)
+	// 	} else {
+	// 		fmt.Println("Signup successful.")
+	// 	}
+	// } else {
+	// 	fmt.Println("Logging in...")
 
-	c.ListenIncomingMessages()
+	// 	err = c.Login(userID, password)
+	// 	if err != nil {
+	// 		log.Fatalf("Login failed: %v", err)
+	// 	} else {
+	// 		fmt.Println("Login successful.")
+	// 	}
+	// }
+
+	// c.ListenIncomingMessages()
+	app.Main()
 
 	// for {
 	// 	receivePayload := &client.ReceiveMessagePayload{
