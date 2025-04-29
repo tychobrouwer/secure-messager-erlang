@@ -54,14 +54,14 @@ defmodule TCPServer.Utils do
       <<0>> -> :ack
       <<1>> -> :error
       <<2>> -> :handshake
-      <<4>> -> :req_login
-      <<5>> -> :req_signup
-      <<6>> -> :req_logout
-      <<7>> -> :req_key
-      <<8>> -> :send_message
-      <<9>> -> :recv_message
-      <<10>> -> :req_messages
-      <<11>> -> :req_pub_key
+      <<3>> -> :req_login
+      <<4>> -> :req_signup
+      <<5>> -> :req_logout
+      <<6>> -> :req_key
+      <<7>> -> :send_message
+      <<8>> -> :recv_message
+      <<9>> -> :req_messages
+      <<10>> -> :req_pub_key
       _ -> nil
     end
   end

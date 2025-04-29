@@ -5,19 +5,15 @@ import (
 	"client-go/internal/gioui"
 	"client-go/internal/sqlite"
 	"client-go/internal/tcpclient"
+
 	"fmt"
 	"log"
-	"time"
+	"os"
 
 	"gioui.org/app"
 )
 
 func main() {
-	go func() {
-		gioui.NewWindow()
-	}()
-	app.Main()
-
 	var err error
 
 	fmt.Println("Starting client...")
@@ -64,20 +60,14 @@ func main() {
 
 	c.ListenIncomingMessages()
 
-	for {
-		receivePayload := &client.ReceiveMessagePayload{
-			StartingTimestamp: c.LastPolledTimestamp,
-		}
+	appUI := gioui.NewApp()
 
-		messages, err := c.RequestMessages(receivePayload)
-		if err != nil {
-			fmt.Printf("Failed to receive message: %v\n", err)
+	go func() {
+		if err := appUI.Loop(c); err != nil {
+			log.Fatal(err)
 		}
+		os.Exit(0)
+	}()
 
-		for i := range messages {
-			fmt.Printf("Received message: %s\n", messages[i].PlainMessage)
-		}
-
-		time.Sleep(1 * time.Second)
-	}
+	app.Main()
 }

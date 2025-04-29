@@ -61,6 +61,14 @@ func NewClient(server *tcpclient.TCPServer, db *sql.DB) (*Client, error) {
 	return client, nil
 }
 
+func (c *Client) GetContactIDs() []string {
+	contactIDs := make([]string, len(c.contacts))
+	for i, contact := range c.contacts {
+		contactIDs[i] = fmt.Sprintf("%x", contact.IDHash)
+	}
+	return contactIDs
+}
+
 func (c *Client) loadKeyPair() error {
 	keypair, err := sqlite.GetUserKeyPair(c.DB)
 

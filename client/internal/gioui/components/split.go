@@ -1,4 +1,4 @@
-package gioui
+package components
 
 import (
 	"image"
@@ -12,8 +12,10 @@ import (
 )
 
 type Split struct {
-	Ratio float32
-	Bar   unit.Dp
+	ratio float32
+	min   float32
+	max   float32
+	bar   unit.Dp
 
 	drag   bool
 	dragID pointer.ID
@@ -22,24 +24,26 @@ type Split struct {
 
 const defaultBarWidth = unit.Dp(10)
 
-func NewSplit(ratio float32, bar unit.Dp) *Split {
+func NewSplit(ratio, min, max float32, bar unit.Dp) *Split {
 	if bar <= 0 {
 		bar = defaultBarWidth
 	}
 
 	return &Split{
-		Ratio: ratio,
-		Bar:   bar,
+		ratio: ratio,
+		min:   min,
+		max:   max,
+		bar:   bar,
 	}
 }
 
 func (s *Split) Layout(gtx layout.Context, left, right layout.Widget) layout.Dimensions {
-	bar := gtx.Dp(s.Bar)
+	bar := gtx.Dp(s.bar)
 	if bar <= 1 {
 		bar = gtx.Dp(defaultBarWidth)
 	}
 
-	leftsize := int(s.Ratio*float32(gtx.Constraints.Max.X) - float32(bar))
+	leftsize := int(s.ratio*float32(gtx.Constraints.Max.X) - float32(bar))
 
 	rightoffset := leftsize + bar
 	rightsize := gtx.Constraints.Max.X - rightoffset
@@ -81,10 +85,15 @@ func (s *Split) Layout(gtx layout.Context, left, right layout.Widget) layout.Dim
 				}
 
 				deltaX := e.Position.X - s.dragX
-				s.dragX = e.Position.X
 
 				deltaRatio := deltaX / float32(gtx.Constraints.Max.X)
-				s.Ratio += deltaRatio
+
+				if s.ratio+deltaRatio < s.min || s.ratio+deltaRatio > s.max {
+					break
+				}
+
+				s.dragX = e.Position.X
+				s.ratio += deltaRatio
 
 				if e.Priority < pointer.Grabbed {
 					gtx.Execute(pointer.GrabCmd{

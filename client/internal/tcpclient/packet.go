@@ -57,6 +57,7 @@ func (p Packet) payload(s *TCPServer) ([]byte, error) {
 	message = append(message, p.Data...)
 
 	message = append(utils.IntToBytes(int64(len(message))), message...)
+
 	return message, nil
 }
 

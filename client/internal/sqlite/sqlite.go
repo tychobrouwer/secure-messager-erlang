@@ -1,20 +1,20 @@
 package sqlite
 
 import (
-  "database/sql"
+	"database/sql"
 
-  _ "github.com/mattn/go-sqlite3" // SQLite driver
+	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
 
 func OpenDatabase(source string) (*sql.DB, error) {
-  // Open a database connection
-  db, err := sql.Open("sqlite3", "file:"+source+"?cache=shared&mode=rwc")
-  if err != nil {
-    return nil, err
-  }
+	// Open a database connection
+	db, err := sql.Open("sqlite3", "file:"+source+"?cache=shared&mode=rwc")
+	if err != nil {
+		return nil, err
+	}
 
-  // Create a table
-  sqlStmt := `
+	// Create a table
+	sqlStmt := `
   CREATE TABLE IF NOT EXISTS user_settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT,
@@ -42,9 +42,9 @@ func OpenDatabase(source string) (*sql.DB, error) {
   );
   `
 
-  if _, err := db.Exec(sqlStmt); err != nil {
-    return nil, err
-  }
+	if _, err := db.Exec(sqlStmt); err != nil {
+		return nil, err
+	}
 
-  return db, nil
+	return db, nil
 }
