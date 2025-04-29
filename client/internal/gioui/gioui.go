@@ -4,6 +4,7 @@ import (
 	"client-go/internal/client"
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/pages/chats"
+	"client-go/internal/gioui/pages/login"
 	"log"
 	"os"
 
@@ -34,6 +35,7 @@ func (a *App) Loop(c *client.Client) error {
 
 	router := page.NewRouter()
 	router.Register("chats", chats.New(router, c))
+	router.Register("login", login.New(router, c))
 
 	for {
 		switch e := a.window.Event().(type) {
