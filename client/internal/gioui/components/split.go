@@ -49,7 +49,7 @@ func (s *Split) Layout(gtx layout.Context, left, right layout.Widget) layout.Dim
 	rightsize := gtx.Constraints.Max.X - rightoffset
 
 	{
-		barRect := image.Rect(leftsize, 0, rightoffset, gtx.Constraints.Max.X)
+		barRect := image.Rect(leftsize, 0, rightoffset, gtx.Constraints.Max.Y)
 		area := clip.Rect(barRect).Push(gtx.Ops)
 
 		event.Op(gtx.Ops, s)
