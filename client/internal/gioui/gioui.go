@@ -4,6 +4,7 @@ import (
 	"client-go/internal/client"
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/pages/chats"
+	"client-go/internal/gioui/pages/loading"
 	"client-go/internal/gioui/pages/login"
 	"log"
 	"os"
@@ -34,6 +35,7 @@ func (a *App) Loop(c *client.Client) error {
 	th := material.NewTheme()
 
 	router := page.NewRouter()
+	router.Register("loading", loading.New(router, c))
 	router.Register("chats", chats.New(router, c))
 	router.Register("login", login.New(router, c))
 

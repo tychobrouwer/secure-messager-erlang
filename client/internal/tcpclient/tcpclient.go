@@ -10,6 +10,8 @@ import (
 )
 
 type TCPServer struct {
+	address          string
+	port             int
 	conn             net.Conn
 	authID           AuthID
 	authToken        AuthToken
@@ -23,6 +25,19 @@ type MessageHandler func(*Packet)
 
 // NewTCPServer creates a new TCPServer instance.
 func NewTCPServer(address string, port int) *TCPServer {
+	server := &TCPServer{
+		address:          address,
+		port:             port,
+		conn:             nil,
+		pendingResponses: make(map[string]chan *Packet),
+		messageHandlers:  make(map[MessageType]MessageHandler),
+		stopListener:     make(chan struct{}),
+	}
+
+	return server
+}
+
+func (s *TCPServer) Connect() error {
 	var conn net.Conn
 	var err error
 
@@ -30,7 +45,7 @@ func NewTCPServer(address string, port int) *TCPServer {
 	maxAttempts := 10
 
 	for range maxAttempts {
-		conn, err = net.Dial("tcp", address+":"+strconv.Itoa(port))
+		conn, err = net.Dial("tcp", s.address+":"+strconv.Itoa(s.port))
 		if err == nil {
 			break
 		}
@@ -51,16 +66,10 @@ func NewTCPServer(address string, port int) *TCPServer {
 		log.Fatalf("Failed to read handshake: %v", err)
 	}
 
-	server := &TCPServer{
-		conn:             conn,
-		pendingResponses: make(map[string]chan *Packet),
-		messageHandlers:  make(map[MessageType]MessageHandler),
-		stopListener:     make(chan struct{}),
-	}
+	s.conn = conn
+	go s.startListener()
 
-	go server.startListener()
-
-	return server
+	return nil
 }
 
 func (s *TCPServer) startListener() {

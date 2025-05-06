@@ -23,7 +23,8 @@ func main() {
 		fmt.Println("Database opened successfully.")
 	}
 
-	c, err := client.NewClient(s, db)
+	c := client.NewClient(s, db)
+	err = c.LoadClientData()
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	} else {

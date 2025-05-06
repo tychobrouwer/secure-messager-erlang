@@ -41,30 +41,32 @@ type Client struct {
 	LastPolledTimestamp int64
 }
 
-func NewClient(server *tcpclient.TCPServer, db *sql.DB) (*Client, error) {
-	client := &Client{
+func NewClient(server *tcpclient.TCPServer, db *sql.DB) *Client {
+	return &Client{
 		TCPServer: server,
 		DB:        db,
 		contacts:  []*contact.Contact{},
 	}
-
-	err := client.loadKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	err = client.loadContacts()
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
 }
 
-func (c *Client) GetContactIDs() []string {
-	contactIDs := make([]string, len(c.contacts))
+func (c *Client) LoadClientData() error {
+	err := c.loadKeyPair()
+	if err != nil {
+		return err
+	}
+
+	err = c.loadContacts()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) GetContactIDs() [][]byte {
+	contactIDs := make([][]byte, len(c.contacts))
 	for i, contact := range c.contacts {
-		contactIDs[i] = fmt.Sprintf("%x", contact.IDHash)
+		contactIDs[i] = contact.IDHash
 	}
 	return contactIDs
 }
@@ -314,16 +316,12 @@ func (c *Client) addContactByHash(contactIDHash []byte, initState ratchet.Ratche
 		if bytes.Equal(contact.IDHash, contactIDHash) {
 			return nil
 		}
-
-		fmt.Printf("contact %x, %x", contactIDHash, contact.IDHash)
 	}
 
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqPubKey, contactIDHash)
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Adding contact: %x\n", contactIDHash)
 
 	contact := contact.NewContact(contactIDHash[:], c.KeyPair, response.Data, initState)
 	c.contacts = append(c.contacts, contact)
@@ -334,4 +332,18 @@ func (c *Client) addContactByHash(contactIDHash []byte, initState ratchet.Ratche
 	}
 
 	return nil
+}
+
+func (c *Client) GetContactChatHistory(contactIDHash []byte) ([]*message.Message, error) {
+	mContact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
+	if mContact == nil {
+		return nil, fmt.Errorf("contact not found")
+	}
+
+	messages, err := sqlite.GetMessages(c.DB, contactIDHash[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return messages, nil
 }
