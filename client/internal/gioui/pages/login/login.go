@@ -6,7 +6,7 @@ import (
 	"client-go/internal/gioui/components"
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/utils"
-	"fmt"
+	"log"
 
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -42,14 +42,60 @@ func New(r *page.Router, c *client.Client) *Page {
 		usernameInput:       components.Input("Username"),
 		passwordInput:       components.Input("Password"),
 		passwordRepeatInput: components.Input("Repeat Password"),
-		signinButton: components.Button("Sign In", 150, false, func() {
-			fmt.Println("Login button clicked")
-		}),
-		signupButton: components.Button("Sign Up", 150, false, func() {
-			fmt.Println("Signup button clicked")
-		}),
 	}
 
+	page.signinButton = components.Button("Sign In", 150, false, func() {
+		userID := page.usernameInput.Editor.Text()
+		password := page.passwordInput.Editor.Text()
+
+		if len(password) == 0 {
+			log.Printf("Password cannot be empty")
+			return
+		}
+
+		if len(userID) == 0 {
+			log.Printf("Username cannot be empty")
+			return
+		}
+
+		err := page.client.Login([]byte(userID), []byte(password))
+		if err == nil {
+			log.Printf("Login successful: %s", userID)
+
+			page.Router.SetCurrent("chats")
+			return
+		}
+
+		log.Printf("Login failed: %v", err)
+		page.passwordInput.Editor.SetText("")
+	})
+	page.signupButton = components.Button("Sign Up", 150, false, func() {
+		userID := page.usernameInput.Editor.Text()
+		password := page.passwordInput.Editor.Text()
+		passwordRepeat := page.passwordRepeatInput.Editor.Text()
+
+		if password != passwordRepeat {
+			log.Printf("Passwords do not match")
+			return
+		}
+
+		if len(password) == 0 {
+			log.Printf("Password cannot be empty")
+			return
+		}
+
+		err := page.client.Signup([]byte(userID), []byte(password))
+		if err == nil {
+			log.Printf("Sign up successful: %s", userID)
+
+			page.Router.SetCurrent("chats")
+			return
+		}
+
+		log.Printf("Sign up failed: %v", err)
+		page.passwordInput.Editor.SetText("")
+		page.passwordRepeatInput.Editor.SetText("")
+	})
 	page.signinLink = components.Link("Sign In", func() {
 		page.UpdateState(LoginState)
 	})

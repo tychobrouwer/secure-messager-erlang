@@ -24,6 +24,8 @@ type Page struct {
 }
 
 func New(r *page.Router, c *client.Client) *Page {
+	c.ListenIncomingMessages()
+
 	return &Page{
 		Router:       r,
 		client:       c,
@@ -103,7 +105,7 @@ func (p *Page) chatList(gtx layout.Context, th *material.Theme) layout.Widget {
 		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
 				return layout.Inset{
-					Bottom: 30,
+					Bottom: 5,
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Max.Y = 60
 

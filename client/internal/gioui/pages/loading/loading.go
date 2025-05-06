@@ -54,22 +54,15 @@ func (p *Page) init() {
 
 	userID, password, err := sqlite.GetLoginData(p.client.DB)
 
-	if err != nil {
-		fmt.Println("Signing up...")
-
-		userID := []byte("test7")
-		password := []byte("password")
-
-		err := p.client.Signup(userID, password)
-		if err != nil {
-			log.Fatalf("Signup failed: %v", err)
-		}
-	} else {
+	if err == nil {
 		fmt.Println("Logging in...")
 
 		err = p.client.Login(userID, password)
-		if err != nil {
-			log.Fatalf("Login failed: %v", err)
+		if err == nil {
+			log.Printf("Login successful: %s", userID)
+
+			p.Router.SetCurrent("chats")
+			return
 		}
 	}
 

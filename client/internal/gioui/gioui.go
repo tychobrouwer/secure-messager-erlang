@@ -36,8 +36,8 @@ func (a *App) Loop(c *client.Client) error {
 
 	router := page.NewRouter()
 	router.Register("loading", loading.New(router, c))
-	router.Register("chats", chats.New(router, c))
 	router.Register("login", login.New(router, c))
+	router.Register("chats", chats.New(router, c))
 
 	for {
 		switch e := a.window.Event().(type) {
