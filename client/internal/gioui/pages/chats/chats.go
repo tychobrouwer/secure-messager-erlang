@@ -18,7 +18,7 @@ import (
 type Page struct {
 	*page.Router
 	client       *client.Client
-	split        *components.Split
+	split        *components.SplitStyle
 	selectedIdx  int
 	selectedChat []byte
 }
@@ -27,7 +27,7 @@ func New(r *page.Router, c *client.Client) *Page {
 	return &Page{
 		Router:       r,
 		client:       c,
-		split:        components.NewSplit(0.25, 0.18, 0.5, 5),
+		split:        components.Split(0.25, 0.18, 0.5, 5),
 		selectedIdx:  -1,
 		selectedChat: nil,
 	}
@@ -109,7 +109,7 @@ func (p *Page) chatList(gtx layout.Context, th *material.Theme) layout.Widget {
 
 					title := fmt.Sprintf("%x", chats[index])
 
-					return components.NewButton(title, p.selectedIdx == index, func() {
+					return components.Button(title, 1, p.selectedIdx == index, func() {
 						p.selectedIdx = index
 						p.selectedChat = chats[index]
 					}).Layout(gtx, th)

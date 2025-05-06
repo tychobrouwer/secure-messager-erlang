@@ -11,7 +11,7 @@ import (
 	"gioui.org/unit"
 )
 
-type Split struct {
+type SplitStyle struct {
 	ratio float32
 	min   float32
 	max   float32
@@ -24,12 +24,12 @@ type Split struct {
 
 const defaultBarWidth = unit.Dp(10)
 
-func NewSplit(ratio, min, max float32, bar unit.Dp) *Split {
+func Split(ratio, min, max float32, bar unit.Dp) *SplitStyle {
 	if bar <= 0 {
 		bar = defaultBarWidth
 	}
 
-	return &Split{
+	return &SplitStyle{
 		ratio: ratio,
 		min:   min,
 		max:   max,
@@ -37,7 +37,7 @@ func NewSplit(ratio, min, max float32, bar unit.Dp) *Split {
 	}
 }
 
-func (s *Split) Layout(gtx layout.Context, left, right layout.Widget) layout.Dimensions {
+func (s *SplitStyle) Layout(gtx layout.Context, left, right layout.Widget) layout.Dimensions {
 	bar := gtx.Dp(s.bar)
 	if bar <= 1 {
 		bar = gtx.Dp(defaultBarWidth)

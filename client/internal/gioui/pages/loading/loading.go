@@ -73,7 +73,7 @@ func (p *Page) init() {
 		}
 	}
 
-	p.Router.SetCurrent("chats")
+	p.Router.SetCurrent("login")
 }
 
 var _ page.Page = &Page{}
