@@ -7,7 +7,7 @@ import (
 )
 
 func EncryptAES(key, plaintext, nonce []byte) ([]byte, error) {
-  if len(key) != 32 {
+  if len(key) != KEY_LENGTH {
     return nil, fmt.Errorf("key must be 32 bytes (AES-256)")
   }
 
@@ -27,7 +27,7 @@ func EncryptAES(key, plaintext, nonce []byte) ([]byte, error) {
 }
 
 func DecryptAES(key, ciphertext, nonce []byte) ([]byte, error) {
-  if len(key) != 32 {
+  if len(key) != KEY_LENGTH {
     return nil, fmt.Errorf("key must be 32 bytes (AES-256)")
   }
 

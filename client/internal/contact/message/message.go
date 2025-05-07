@@ -8,10 +8,12 @@ import (
 	"log"
 )
 
-type Hash [32]byte
+const HASH_LENGTH = 32
+
+type Hash [HASH_LENGTH]byte
 
 func bytesToHash(b []byte) (Hash, error) {
-	if len(b) != 32 {
+	if len(b) != HASH_LENGTH {
 		return Hash{}, fmt.Errorf("invalid hash length: expected 32 bytes, got %d", len(b))
 	}
 
@@ -92,8 +94,8 @@ func ParseMessageData(receiverIDHash, data []byte) (*Message, error) {
 	senderIDHash := data[offset : offset+16]
 	offset += 16
 
-	publicKey := data[offset : offset+32]
-	offset += 32
+	publicKey := data[offset : offset+crypt.KEY_LENGTH]
+	offset += crypt.KEY_LENGTH
 
 	index := utils.BytesToInt(data[offset : offset+utils.PACKET_LENGTH_NR_BYTES])
 	offset += utils.PACKET_LENGTH_NR_BYTES
@@ -131,26 +133,21 @@ func (m *Message) Payload() []byte {
 
 func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	// if ratchet was last used for receiving
-	if !r.IsSending() {
-		// generate new key pair
+	if r.State == ratchet.Receiving {
 		newKeyPair, err := crypt.GenerateKeyPair()
 		if err != nil {
 			log.Fatalf("Failed to generate key pair: %v", err)
 		}
 
-		// update state to sending
-		r.UpdateState(ratchet.Sending)
-		// set new key pair
-		r.UpdateKeyPair(newKeyPair)
+		r.State = ratchet.Sending
+		r.KeyPair = newKeyPair
+
 		// cycle root key with current public key
 		r.RKCycle(nil)
 	}
 
-	// get current message ratchet
-	messageRatchet := r.GetMessageRatchet()
-
 	// encrypt message with current message ratchet
-	encryptedMessage, hash_bytes, idx, err := messageRatchet.Encrypt(m.PlainMessage)
+	encryptedMessage, hash_bytes, idx, err := r.CurrentMRatchet.Encrypt(m.PlainMessage)
 	if err != nil {
 		return err
 	}
@@ -163,7 +160,7 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 	m.EncryptedMessage = encryptedMessage
 	m.hash = hash
 	m.Header.Index = idx
-	m.Header.PublicKey = r.GetPublicKey()
+	m.Header.PublicKey = r.KeyPair.PublicKey
 
 	return nil
 }
@@ -171,8 +168,7 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// Try current ratchet first
 	if r.IsCurrentRatchet(m.Header.PublicKey) {
-		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
+		plaintext, err := r.CurrentMRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err == nil {
 			m.PlainMessage = plaintext
 		}
@@ -195,10 +191,9 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// If no previous ratchet found, cycle the current ratchet
 	if !r.IsCurrentRatchet(m.Header.PublicKey) {
 		r.RKCycle(m.Header.PublicKey)
-		r.UpdateState(ratchet.Receiving)
+	    r.State = ratchet.Receiving
 
-		messageRatchet := r.GetMessageRatchet()
-		plaintext, err := messageRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
+		plaintext, err := ratchet.CurrentMRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err != nil {
 			return err
 		}

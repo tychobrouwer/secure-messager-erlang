@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const MAX_RETRIES = 10
+
 type TCPServer struct {
 	address          string
 	port             int
@@ -42,9 +44,8 @@ func (s *TCPServer) Connect() error {
 	var err error
 
 	retryInterval := 1 * time.Second
-	maxAttempts := 10
 
-	for range maxAttempts {
+	for range MAX_RETRIES {
 		conn, err = net.Dial("tcp", s.address+":"+strconv.Itoa(s.port))
 		if err == nil {
 			break
@@ -52,11 +53,11 @@ func (s *TCPServer) Connect() error {
 
 		log.Printf("Failed to connect to server: %v. Retrying in %s...", err, retryInterval)
 		time.Sleep(retryInterval)
-		retryInterval *= 2 // Exponential backoff
+		retryInterval *= 2
 	}
 
 	if err != nil {
-		log.Fatalf("Failed to connect to server after %d attempts: %v", maxAttempts, err)
+		log.Fatalf("Failed to connect to server after %d attempts: %v", MAX_RETRIES, err)
 	}
 
 	// receive handshake

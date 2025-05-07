@@ -8,13 +8,17 @@ import (
 	"log"
 )
 
+const (
+	KEY_LENGTH = 32
+)
+
 type KeyPair struct {
 	PublicKey  []byte
 	PrivateKey []byte
 }
 
 func (k *KeyPair) IsValid() bool {
-	if len(k.PublicKey) != 32 || len(k.PrivateKey) != 32 {
+	if len(k.PublicKey) != KEY_LENGTH || len(k.PrivateKey) != KEY_LENGTH {
 		return false
 	}
 
@@ -22,7 +26,7 @@ func (k *KeyPair) IsValid() bool {
 }
 
 func GenerateKeyPair() (KeyPair, error) {
-	priv := make([]byte, 32)
+	priv := make([]byte, KEY_LENGTH)
 	if _, err := rand.Read(priv); err != nil {
 		log.Fatalf("Failed to generate private key: %v", err)
 

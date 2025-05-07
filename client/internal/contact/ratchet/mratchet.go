@@ -9,6 +9,12 @@ import (
 	"log"
 )
 
+const (
+	MAX_MESSAGE_SKIP = 100
+	NONCE_LENGTH = 12
+	SALT_LENGTH = 64
+)
+
 type MessageRatchet struct {
 	ForeignPublicKey   []byte
 	RootKey            []byte
@@ -21,7 +27,7 @@ type MessageRatchet struct {
 func NewMessageRatchet() *MessageRatchet {
 	return &MessageRatchet{
 		SkippedMessageKeys: make(map[int][]byte),
-		MaxSkip:            100,
+		MaxSkip:            MAX_MESSAGE_SKIP,
 		PreviousIndex:      -1,
 	}
 }
@@ -41,8 +47,8 @@ func (m *MessageRatchet) CKCycle() []byte {
 			return nil
 		}
 
-		m.ChainKey = keyMaterial[32:] // Second half becomes the chain key
-		return keyMaterial[:32]       // First half becomes the message key
+		m.ChainKey = keyMaterial[crypt.KEY_LENGTH:] // Second half becomes the chain key
+		return keyMaterial[:crypt.KEY_LENGTH]       // First half becomes the message key
 	}
 
 	// Normal chain key advancement
@@ -52,8 +58,8 @@ func (m *MessageRatchet) CKCycle() []byte {
 		return nil
 	}
 
-	messageKey := keyMaterial[:32] // First half for encryption
-	m.ChainKey = keyMaterial[32:]  // Second half for next iteration
+	messageKey := keyMaterial[:crypt.KEY_LENGTH] // First half for encryption
+	m.ChainKey = keyMaterial[crypt.KEY_LENGTH:]  // Second half for next iteration
 
 	return messageKey
 }
@@ -62,38 +68,39 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
 	messageKey := m.CKCycle()
 	nextIndex := m.PreviousIndex + 1
 
-	salt := make([]byte, 64)
-	derivedKey, err := derive(messageKey, salt, nil, 64)
+	salt := make([]byte, SALT_LENGTH)
+	derivedKey, err := derive(messageKey, salt, nil, 2*crypt.KEY_LENGTH)
 	if err != nil {
 		return nil, nil, -1, err
 	}
 
-	encryptionKey, authenticationKey := derivedKey[:32], derivedKey[32:]
+	encryptionKey := derivedKey[:crypt.KEY_LENGTH]
+	authenticationKey := derivedKey[crypt.KEY_LENGTH:]
 
-	nonce := make([]byte, 12)
+	nonce := make([]byte, NONCE_LENGTH)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, nil, -1, err
 	}
 
-	ciphertext, err := crypt.EncryptAES(encryptionKey, plaintext, nonce)
+	cipherText, err := crypt.EncryptAES(encryptionKey, plaintext, nonce)
 	if err != nil {
 		return nil, nil, -1, err
 	}
 
 	mac := hmac.New(sha256.New, authenticationKey)
-	mac.Write(append(nonce, ciphertext...))
+	mac.Write(append(nonce, cipherText...))
 	macHash := mac.Sum(nil)
 
 	m.PreviousIndex = nextIndex
 
-	return append(nonce, ciphertext...), macHash, nextIndex, nil
+	return append(nonce, cipherText...), macHash, nextIndex, nil
 }
 
-func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte, error) {
+func (m *MessageRatchet) Decrypt(cipherText, macHash []byte, msgIdx int) ([]byte, error) {
 	if msgKey, exists := m.SkippedMessageKeys[msgIdx]; exists {
 		defer delete(m.SkippedMessageKeys, msgIdx)
 
-		return m.decryptWithKey(ciphertext, macHash, msgKey)
+		return m.decryptWithKey(cipherText, macHash, msgKey)
 	}
 
 	if msgIdx < 0 {
@@ -122,29 +129,29 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 	}
 
 	m.PreviousIndex = msgIdx
-	return m.decryptWithKey(ciphertext, macHash, messageKey)
+	return m.decryptWithKey(cipherText, macHash, messageKey)
 }
 
-func (m *MessageRatchet) decryptWithKey(ciphertext, macHash, messageKey []byte) ([]byte, error) {
-	salt := make([]byte, 64)
-	derivedKey, err := derive(messageKey, salt, nil, 64)
+func (m *MessageRatchet) decryptWithKey(cipherText, macHash, messageKey []byte) ([]byte, error) {
+	salt := make([]byte, SALT_LENGTH)
+	derivedKey, err := derive(messageKey, salt, nil, 2*crypt.KEY_LENGTH)
 	if err != nil {
 		return nil, err
 	}
 
-	encryptionKey, authenticationKey := derivedKey[:32], derivedKey[32:]
+	encryptionKey, authenticationKey := derivedKey[:crypt.KEY_LENGTH], derivedKey[crypt.KEY_LENGTH:]
 
-	nonce, ciphertext := ciphertext[:12], ciphertext[12:]
+	nonce, cipherText := cipherText[:NONCE_LENGTH], cipherText[NONCE_LENGTH:]
 
 	mac := hmac.New(sha256.New, authenticationKey)
-	mac.Write(append(nonce, ciphertext...))
+	mac.Write(append(nonce, cipherText...))
 	expectedMac := mac.Sum(nil)
 
 	if !hmac.Equal(expectedMac, macHash) {
 		return nil, fmt.Errorf("invalid MAC")
 	}
 
-	plaintext, err := crypt.DecryptAES(encryptionKey, ciphertext, nonce)
+	plaintext, err := crypt.DecryptAES(encryptionKey, cipherText, nonce)
 	if err != nil {
 		return nil, err
 	}

@@ -294,7 +294,7 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	}
 
 	// Save decrypted message
-	err = sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchedIndex, message)
+	err = sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchetIndex, message)
 	if err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func (c *Client) SendMessage(contactIDHash, plainMessage []byte) error {
 		return err
 	}
 
-	sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchedIndex, message)
+	sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchetIndex, message)
 	sqlite.UpdateContact(c.DB, mContact)
 
 	return nil

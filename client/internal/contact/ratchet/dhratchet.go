@@ -10,6 +10,8 @@ import (
 
 type RatchetState int
 
+const PREV_RATCHET_LIMIT = 10
+
 const (
 	Sending RatchetState = iota
 	Receiving
@@ -19,9 +21,9 @@ type DHRatchet struct {
 	KeyPair          crypt.KeyPair
 	RootKey          []byte
 	ChildKey         []byte
-	CurrentRatchet   *MessageRatchet
-	PreviousRatchets []MessageRatchet
-	RatchedIndex     int
+	CurrentMRatchet   *MessageRatchet
+	PreviousMRatchets []MessageRatchet
+	RatchetIndex     int
 	State            RatchetState
 }
 
@@ -39,9 +41,9 @@ func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte, initState Ratc
 	return &DHRatchet{
 		KeyPair:          keypair,
 		RootKey:          rootKey,
-		CurrentRatchet:   messageRatchet,
-		PreviousRatchets: []MessageRatchet{},
-		RatchedIndex:     0,
+		CurrentMRatchet:   messageRatchet,
+		PreviousMRatchets: []MessageRatchet{},
+		RatchetIndex:     0,
 		State:            initState,
 	}
 }
@@ -70,16 +72,16 @@ func (r *DHRatchet) Unmarshal(data []byte) error {
 
 func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
 	if foreignPublicKey == nil {
-		foreignPublicKey = r.CurrentRatchet.ForeignPublicKey
+	    foreignPublicKey = r.CurrentMRatchet.ForeignPublicKey
 	}
 
 	// Store current ratchet before creating a new one
-	if len(r.CurrentRatchet.ForeignPublicKey) > 0 {
-		r.PreviousRatchets = append(r.PreviousRatchets, *r.CurrentRatchet)
+	if len(r.CurrentMRatchet.ForeignPublicKey) > 0 {
+		r.PreviousMRatchets = append(r.PreviousMRatchets, *r.CurrentMRatchet)
 
 		// Limit the number of stored previous ratchets (optional)
-		if len(r.PreviousRatchets) > 5 {
-			r.PreviousRatchets = r.PreviousRatchets[len(r.PreviousRatchets)-5:]
+		if len(r.PreviousRatchets) > PREV_RATCHET_LIMIT {
+			r.PreviousMRatchets = r.PreviousMRatchets[len(r.PreviousMRatchets)-PREV_RATCHET_LIMIT:]
 		}
 	}
 
@@ -89,29 +91,29 @@ func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
 		return
 	}
 
-	keyMaterial, err := derive(r.RootKey, dhKey, []byte("Ratchet"), 64)
+	keyMaterial, err := derive(r.RootKey, dhKey, []byte("Ratchet"), 2*crypt.KEY_LENGTH)
 	if err != nil {
 		log.Printf("Failed to generate key material: %v", err)
 		return
 	}
 
-	r.RootKey = keyMaterial[:32]
-	r.ChildKey = keyMaterial[32:]
+	r.RootKey = keyMaterial[:crypt.KEY_LENGTH]
+	r.ChildKey = keyMaterial[crypt.KEY_LENGTH:]
 
 	// Create a new message ratchet with proper initialization
-	r.CurrentRatchet = NewMessageRatchet()
-	r.CurrentRatchet.Initialize(r.RootKey, foreignPublicKey)
-	r.RatchedIndex++
+	r.CurrentMRatchet = NewMessageRatchet()
+	r.CurrentMRatchet.Initialize(r.RootKey, foreignPublicKey)
+	r.RatchetIndex++
 }
 
 func (r *DHRatchet) IsCurrentRatchet(publicKey []byte) bool {
-	return bytes.Equal(r.CurrentRatchet.ForeignPublicKey, publicKey)
+	return bytes.Equal(r.CurrentMRatchet.ForeignPublicKey, publicKey)
 }
 
 func (r *DHRatchet) GetPrevRatchet(publicKey []byte) *MessageRatchet {
 	fmt.Printf("Searching for previous ratchet with public key: %x\n", publicKey)
 
-	for _, ratchet := range r.PreviousRatchets {
+	for _, ratchet := range r.PreviousMRatchets {
 		fmt.Printf("Checking public key: %x\n", ratchet.ForeignPublicKey)
 		if bytes.Equal(ratchet.ForeignPublicKey, publicKey) {
 			return &ratchet
@@ -119,28 +121,4 @@ func (r *DHRatchet) GetPrevRatchet(publicKey []byte) *MessageRatchet {
 	}
 
 	return nil
-}
-
-func (r *DHRatchet) GetPublicKey() []byte {
-	return r.KeyPair.PublicKey
-}
-
-func (r *DHRatchet) UpdateKeyPair(keypair crypt.KeyPair) {
-	r.KeyPair = keypair
-}
-
-func (r *DHRatchet) UpdateState(state RatchetState) {
-	r.State = state
-}
-
-func (r *DHRatchet) IsReceiving() bool {
-	return r.State == Receiving
-}
-
-func (r *DHRatchet) IsSending() bool {
-	return r.State == Sending
-}
-
-func (r *DHRatchet) GetMessageRatchet() *MessageRatchet {
-	return r.CurrentRatchet
 }
