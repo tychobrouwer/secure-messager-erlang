@@ -92,6 +92,14 @@ func (c *Client) loadKeyPair() error {
 }
 
 func (c *Client) Login(userID, password []byte) error {
+	if len(userID) == 0 {
+		return fmt.Errorf("userID cannot be empty")
+	}
+
+	if len(password) == 0 {
+		return fmt.Errorf("password cannot be empty")
+	}
+
 	userIDHash := md5.Sum([]byte(userID))
 	c.IDHash = userIDHash[:]
 
@@ -135,6 +143,14 @@ func (c *Client) Login(userID, password []byte) error {
 }
 
 func (c *Client) Signup(userID, password []byte) error {
+	if len(userID) == 0 {
+		return fmt.Errorf("userID cannot be empty")
+	}
+
+	if len(password) == 0 {
+		return fmt.Errorf("password cannot be empty")
+	}
+
 	userIDHash := md5.Sum([]byte(userID))
 	c.IDHash = userIDHash[:]
 
@@ -258,18 +274,21 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	// Save decrypted message
 	err = sqlite.SaveMessage(c.DB, message)
 	if err != nil {
-		fmt.Printf("Failed to save message in db: %v\n", err)
+		return err
 	}
 
-	err = sqlite.UpdateContact(c.DB, mContact)
-	if err != nil {
-		fmt.Printf("Failed to update contact in db: %v\n", err)
-	}
-
-	return nil
+	return sqlite.UpdateContact(c.DB, mContact)
 }
 
 func (c *Client) SendMessage(contactID, plainMessage []byte) error {
+	if len(contactID) == 0 {
+		return fmt.Errorf("contactID cannot be empty")
+	}
+
+	if len(plainMessage) == 0 {
+		return fmt.Errorf("plainMessage cannot be empty")
+	}
+
 	contactIDHash := md5.Sum([]byte(contactID))
 
 	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
@@ -306,12 +325,20 @@ func (c *Client) loadContacts() error {
 }
 
 func (c *Client) AddContact(contactID []byte) error {
+	if len(contactID) == 0 {
+		return fmt.Errorf("contactID cannot be empty")
+	}
+
 	contactIDHash := md5.Sum([]byte(contactID))
 
 	return c.addContactByHash(contactIDHash[:], ratchet.Sending)
 }
 
 func (c *Client) addContactByHash(contactIDHash []byte, initState ratchet.RatchetState) error {
+	if len(contactIDHash) == 0 {
+		return fmt.Errorf("contactIDHash cannot be empty")
+	}
+
 	for _, contact := range c.contacts {
 		if bytes.Equal(contact.IDHash, contactIDHash) {
 			return nil
@@ -335,6 +362,10 @@ func (c *Client) addContactByHash(contactIDHash []byte, initState ratchet.Ratche
 }
 
 func (c *Client) GetContactChatHistory(contactIDHash []byte) ([]*message.Message, error) {
+	if len(contactIDHash) == 0 {
+		return nil, fmt.Errorf("contactIDHash cannot be empty")
+	}
+
 	mContact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
 	if mContact == nil {
 		return nil, fmt.Errorf("contact not found")

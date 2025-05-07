@@ -23,10 +23,6 @@ type Page struct {
 	usernameInput       *components.InputStyle
 	passwordInput       *components.InputStyle
 	passwordRepeatInput *components.InputStyle
-	signinButton        *components.ButtonStyle
-	signupButton        *components.ButtonStyle
-	signinLink          *components.LinkStyle
-	signupLink          *components.LinkStyle
 }
 
 const (
@@ -35,7 +31,7 @@ const (
 )
 
 func New(r *page.Router, c *client.Client) *Page {
-	page := &Page{
+	return &Page{
 		Router:              r,
 		client:              c,
 		state:               LoginState,
@@ -43,75 +39,11 @@ func New(r *page.Router, c *client.Client) *Page {
 		passwordInput:       components.Input("Password"),
 		passwordRepeatInput: components.Input("Repeat Password"),
 	}
-
-	page.signinButton = components.Button("Sign In", 150, false, func() {
-		userID := page.usernameInput.Editor.Text()
-		password := page.passwordInput.Editor.Text()
-
-		if len(password) == 0 {
-			log.Printf("Password cannot be empty")
-			return
-		}
-
-		if len(userID) == 0 {
-			log.Printf("Username cannot be empty")
-			return
-		}
-
-		err := page.client.Login([]byte(userID), []byte(password))
-		if err == nil {
-			log.Printf("Login successful: %s", userID)
-
-			page.Router.SetCurrent("chats")
-			return
-		}
-
-		log.Printf("Login failed: %v", err)
-		page.passwordInput.Editor.SetText("")
-	})
-	page.signupButton = components.Button("Sign Up", 150, false, func() {
-		userID := page.usernameInput.Editor.Text()
-		password := page.passwordInput.Editor.Text()
-		passwordRepeat := page.passwordRepeatInput.Editor.Text()
-
-		if password != passwordRepeat {
-			log.Printf("Passwords do not match")
-			return
-		}
-
-		if len(password) == 0 {
-			log.Printf("Password cannot be empty")
-			return
-		}
-
-		err := page.client.Signup([]byte(userID), []byte(password))
-		if err == nil {
-			log.Printf("Sign up successful: %s", userID)
-
-			page.Router.SetCurrent("chats")
-			return
-		}
-
-		log.Printf("Sign up failed: %v", err)
-		page.passwordInput.Editor.SetText("")
-		page.passwordRepeatInput.Editor.SetText("")
-	})
-	page.signinLink = components.Link("Sign In", func() {
-		page.UpdateState(LoginState)
-	})
-	page.signupLink = components.Link("Sign Up", func() {
-		page.UpdateState(SignupState)
-	})
-
-	return page
 }
 
 var _ page.Page = &Page{}
 
 func (p *Page) UpdateState(state int) {
-	p.signinLink.Reset()
-	p.signupLink.Reset()
-
 	p.state = state
 }
 
@@ -195,9 +127,44 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 							layout.Rigid(
 								func(gtx layout.Context) layout.Dimensions {
 									if p.state == SignupState {
-										return p.signupButton.Layout(gtx, th)
+										return components.Button("Sign Up", 150, false, func() {
+											userID := p.usernameInput.Editor.Text()
+											password := p.passwordInput.Editor.Text()
+											passwordRepeat := p.passwordRepeatInput.Editor.Text()
+
+											if password != passwordRepeat {
+												log.Printf("Passwords do not match")
+												return
+											}
+
+											err := p.client.Signup([]byte(userID), []byte(password))
+											if err == nil {
+												log.Printf("Sign up successful: %s", userID)
+
+												p.Router.SetCurrent("chats")
+												return
+											}
+
+											log.Printf("Sign up failed: %v", err)
+											p.passwordInput.Editor.SetText("")
+											p.passwordRepeatInput.Editor.SetText("")
+										}).Layout(gtx, th)
 									}
-									return p.signinButton.Layout(gtx, th)
+									return components.Button("Sign In", 150, false, func() {
+										userID := p.usernameInput.Editor.Text()
+										password := p.passwordInput.Editor.Text()
+
+										err := p.client.Login([]byte(userID), []byte(password))
+										if err == nil {
+											log.Printf("Login successful: %s", userID)
+
+											p.Router.SetCurrent("chats")
+											return
+										}
+
+										log.Printf("Login failed: %v", err)
+										p.passwordInput.Editor.SetText("")
+									}).Layout(gtx, th)
 								},
 							),
 							layout.Flexed(0.5, layout.Spacer{}.Layout),
@@ -230,9 +197,14 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 							layout.Rigid(
 								func(gtx layout.Context) layout.Dimensions {
 									if p.state == SignupState {
-										return p.signinLink.Layout(gtx, th)
+										return components.ButtonLink("Sign In", func() {
+											p.UpdateState(LoginState)
+										}).Layout(gtx, th)
 									}
-									return p.signupLink.Layout(gtx, th)
+
+									return components.ButtonLink("Sign Up", func() {
+										p.UpdateState(SignupState)
+									}).Layout(gtx, th)
 								},
 							),
 							layout.Flexed(0.5, layout.Spacer{}.Layout),

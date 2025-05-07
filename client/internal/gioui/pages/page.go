@@ -10,18 +10,18 @@ type Page interface {
 }
 
 type Router struct {
-	pages   map[interface{}]Page
-	current interface{}
+	pages   map[any]Page
+	current any
 }
 
 func NewRouter() *Router {
 	return &Router{
-		pages:   make(map[interface{}]Page),
+		pages:   make(map[any]Page),
 		current: nil,
 	}
 }
 
-func (r *Router) Register(tag interface{}, p Page) {
+func (r *Router) Register(tag any, p Page) {
 	r.pages[tag] = p
 
 	if r.current == nil {
@@ -29,7 +29,7 @@ func (r *Router) Register(tag interface{}, p Page) {
 	}
 }
 
-func (r *Router) SetCurrent(tag interface{}) {
+func (r *Router) SetCurrent(tag any) {
 	if _, ok := r.pages[tag]; !ok {
 		return
 	}

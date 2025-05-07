@@ -2,22 +2,18 @@ package components
 
 import (
 	"client-go/internal/gioui/colors"
+	"client-go/internal/gioui/icons"
 	"client-go/internal/gioui/utils"
 	"image"
 
-	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
-	"gioui.org/op/paint"
-	"gioui.org/widget"
-	"gioui.org/widget/material"
 )
 
-type ButtonStyle struct {
-	title     string
+type ButtonIconStyle struct {
+	icon      icons.Icon
 	width     int
 	isPressed bool
 	isHovered bool
@@ -25,9 +21,9 @@ type ButtonStyle struct {
 	onClick   func()
 }
 
-func Button(title string, width int, isActive bool, onClick func()) *ButtonStyle {
-	return &ButtonStyle{
-		title:     title,
+func ButtonIcon(icon icons.Icon, width int, isActive bool, onClick func()) *ButtonIconStyle {
+	return &ButtonIconStyle{
+		icon:      icon,
 		width:     width,
 		isPressed: false,
 		isHovered: false,
@@ -36,46 +32,26 @@ func Button(title string, width int, isActive bool, onClick func()) *ButtonStyle
 	}
 }
 
-func (b *ButtonStyle) Reset() {
+func (b *ButtonIconStyle) Reset() {
 	b.isPressed = false
 	b.isHovered = false
 }
 
-func (b *ButtonStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	textColor := colors.OnSurface
-	if b.isActive {
-		textColor = colors.OnPrimary
-	}
-
-	textColorMacro := op.Record(gtx.Ops)
-	paint.ColorOp{Color: textColor}.Add(gtx.Ops)
-	textColorOp := textColorMacro.Stop()
-
-	font := font.Font{
-		Typeface: th.Face,
-	}
-
-	macro := op.Record(gtx.Ops)
-	tl := widget.Label{}
-	dims := tl.Layout(gtx, th.Shaper, font, 16, b.title, textColorOp)
-	call := macro.Stop()
-
-	if b.width > 0 {
-		gtx.Constraints.Min.X = max(dims.Size.X+20, b.width)
-		gtx.Constraints.Max.X = max(dims.Size.X+20, b.width)
-	}
-	gtx.Constraints.Min.Y = dims.Size.Y + 10
-	gtx.Constraints.Max.Y = dims.Size.Y + 10
+func (b *ButtonIconStyle) Layout(gtx layout.Context, iconSize int) layout.Dimensions {
+	gtx.Constraints.Min.X = max(iconSize+20, b.width)
+	gtx.Constraints.Max.X = max(iconSize+20, b.width)
+	gtx.Constraints.Min.Y = iconSize + 10
+	gtx.Constraints.Max.Y = iconSize + 10
 
 	bounds := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
 	area := clip.Rect(bounds).Push(gtx.Ops)
 
-	event.Op(gtx.Ops, b.title+"button")
+	event.Op(gtx.Ops, b.icon.Title+"button")
 	pointer.CursorPointer.Add(gtx.Ops)
 
 	for {
 		ev, ok := gtx.Event(pointer.Filter{
-			Target: b.title + "button",
+			Target: b.icon.Title + "button",
 			Kinds:  pointer.Press | pointer.Release | pointer.Enter | pointer.Leave,
 		})
 		if !ok {
@@ -112,6 +88,11 @@ func (b *ButtonStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dime
 		utils.ColorRoundBox(gtx, colors.SurfaceContainer, 5)
 	}
 
+	iconColor := colors.OnSurface
+	if b.isActive {
+		iconColor = colors.OnPrimary
+	}
+
 	layout.Inset{
 		Top:    5,
 		Bottom: 5,
@@ -119,9 +100,7 @@ func (b *ButtonStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dime
 		Right:  10,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			call.Add(gtx.Ops)
-
-			return dims
+			return b.icon.DrawIcon(gtx.Ops, iconColor, 20, 0)
 		})
 	})
 

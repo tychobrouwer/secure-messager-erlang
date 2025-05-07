@@ -7,8 +7,6 @@ import (
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/utils"
 	"client-go/internal/sqlite"
-	"fmt"
-	"image"
 	"log"
 	"time"
 
@@ -36,7 +34,7 @@ func New(r *page.Router, c *client.Client) *Page {
 }
 
 func (p *Page) init() {
-	fmt.Println("Connecting to server...")
+	log.Printf("Connecting to server...")
 
 	err := p.client.TCPServer.Connect()
 
@@ -44,7 +42,7 @@ func (p *Page) init() {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
 
-	fmt.Println("Loading client data...")
+	log.Printf("Loading client data...")
 
 	err = p.client.LoadClientData()
 
@@ -55,7 +53,7 @@ func (p *Page) init() {
 	userID, password, err := sqlite.GetLoginData(p.client.DB)
 
 	if err == nil {
-		fmt.Println("Logging in...")
+		log.Printf("Logging in...")
 
 		err = p.client.Login(userID, password)
 		if err == nil {
@@ -80,8 +78,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 
 		gtx.Execute(op.InvalidateCmd{})
 
-		icons.DrawIcon(gtx.Ops, icons.Loader, colors.OnSurface, 50, angle)
-		return layout.Dimensions{Size: image.Pt(50, 50)}
+		return icons.Loader.DrawIcon(gtx.Ops, colors.OnSurface, 50, angle)
 	})
 
 	return layout.Dimensions{}

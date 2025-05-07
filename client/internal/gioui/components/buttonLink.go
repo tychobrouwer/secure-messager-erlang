@@ -15,15 +15,15 @@ import (
 	"gioui.org/widget/material"
 )
 
-type LinkStyle struct {
+type ButtonLinkStyle struct {
 	title     string
 	isPressed bool
 	isHovered bool
 	onClick   func()
 }
 
-func Link(title string, onClick func()) *LinkStyle {
-	return &LinkStyle{
+func ButtonLink(title string, onClick func()) *ButtonLinkStyle {
+	return &ButtonLinkStyle{
 		title:     title,
 		isPressed: false,
 		isHovered: false,
@@ -31,12 +31,12 @@ func Link(title string, onClick func()) *LinkStyle {
 	}
 }
 
-func (l *LinkStyle) Reset() {
+func (l *ButtonLinkStyle) Reset() {
 	l.isPressed = false
 	l.isHovered = false
 }
 
-func (l *LinkStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (l *ButtonLinkStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 
 	font := font.Font{
 		Typeface: th.Face,
