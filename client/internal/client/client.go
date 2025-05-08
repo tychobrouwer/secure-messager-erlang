@@ -280,16 +280,14 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	return sqlite.UpdateContact(c.DB, mContact)
 }
 
-func (c *Client) SendMessage(contactID, plainMessage []byte) error {
-	if len(contactID) == 0 {
+func (c *Client) SendMessage(contactIDHash, plainMessage []byte) error {
+	if len(contactIDHash) == 0 {
 		return fmt.Errorf("contactID cannot be empty")
 	}
 
 	if len(plainMessage) == 0 {
 		return fmt.Errorf("plainMessage cannot be empty")
 	}
-
-	contactIDHash := md5.Sum([]byte(contactID))
 
 	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
 	if contact == nil {

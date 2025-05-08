@@ -7,6 +7,7 @@ import (
 	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -15,88 +16,64 @@ import (
 	"gioui.org/widget/material"
 )
 
-type ButtonLinkStyle struct {
-	title     string
-	isPressed bool
-	isHovered bool
-	onClick   func()
+type ClickableButtonLink struct {
+	title string
+	Click Click
 }
 
-func ButtonLink(title string, onClick func()) *ButtonLinkStyle {
-	return &ButtonLinkStyle{
-		title:     title,
-		isPressed: false,
-		isHovered: false,
-		onClick:   onClick,
+func ButtonLink(title string) ClickableButtonLink {
+	return ClickableButtonLink{
+		title: title,
+		Click: Click{},
 	}
 }
 
-func (l *ButtonLinkStyle) Reset() {
-	l.isPressed = false
-	l.isHovered = false
+func (l *ClickableButtonLink) SetOnClick(onClick func()) {
+	l.Click.onClick = onClick
 }
 
-func (l *ButtonLinkStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (l *ClickableButtonLink) SetTitle(title string) {
+	l.title = title
+}
+
+func (l *ClickableButtonLink) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	return l.layout(l, gtx, th)
+}
+
+func (l *ClickableButtonLink) layout(t event.Tag, gtx layout.Context, th *material.Theme) layout.Dimensions {
+	l.Click.Update(gtx.Source)
+
+	m := op.Record(gtx.Ops)
 
 	font := font.Font{
 		Typeface: th.Face,
 	}
 
-	measureMacro := op.Record(gtx.Ops)
+	textColor := colors.OnPrimary
+	if l.Click.hovered {
+		textColor = colors.OnPrimaryVariant
+	}
+	colorMacro := op.Record(gtx.Ops)
+	paint.ColorOp{Color: textColor}.Add(gtx.Ops)
+	colorOp := colorMacro.Stop()
+
 	tl := widget.Label{}
-	dims := tl.Layout(gtx, th.Shaper, font, 12, l.title, op.CallOp{})
-	measureMacro.Stop()
+	dims := tl.Layout(gtx, th.Shaper, font, 12, l.title, colorOp)
+
+	c := m.Stop()
+
+	defer clip.Rect(image.Rectangle{Max: dims.Size}).Push(gtx.Ops).Pop()
+	pointer.CursorPointer.Add(gtx.Ops)
+
+	semantic.EnabledOp(gtx.Enabled()).Add(gtx.Ops)
+	l.Click.Add(gtx.Ops)
+	event.Op(gtx.Ops, t)
 
 	gtx.Constraints.Min.X = dims.Size.X
 	gtx.Constraints.Max.X = dims.Size.X
 	gtx.Constraints.Min.Y = dims.Size.Y
 	gtx.Constraints.Max.Y = dims.Size.Y
 
-	bounds := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
-	area := clip.Rect(bounds).Push(gtx.Ops)
-
-	event.Op(gtx.Ops, l.title+"link")
-	pointer.CursorPointer.Add(gtx.Ops)
-
-	for {
-		ev, ok := gtx.Event(pointer.Filter{
-			Target: l.title + "link",
-			Kinds:  pointer.Press | pointer.Release | pointer.Enter | pointer.Leave,
-		})
-		if !ok {
-			break
-		}
-
-		e, ok := ev.(pointer.Event)
-		if !ok {
-			continue
-		}
-
-		switch e.Kind {
-		case pointer.Press:
-			l.onClick()
-			l.isPressed = true
-		case pointer.Release:
-			l.isPressed = false
-		case pointer.Enter:
-			l.isHovered = true
-		case pointer.Leave:
-			l.isHovered = false
-		}
-	}
-
-	area.Pop()
-
-	textColor := colors.OnPrimary
-	if l.isHovered {
-		textColor = colors.OnPrimaryVariant
-	}
-
-	colorMacro := op.Record(gtx.Ops)
-	paint.ColorOp{Color: textColor}.Add(gtx.Ops)
-	colorOp := colorMacro.Stop()
-
-	colorOp.Add(gtx.Ops)
-
-	return tl.Layout(gtx, th.Shaper, font, 12, l.title, colorOp)
+	c.Add(gtx.Ops)
+	return dims
 }

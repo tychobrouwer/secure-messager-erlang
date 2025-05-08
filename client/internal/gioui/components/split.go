@@ -12,10 +12,12 @@ import (
 )
 
 type SplitStyle struct {
-	ratio float32
-	min   float32
-	max   float32
-	bar   unit.Dp
+	ratio    float32
+	min      float32
+	max      float32
+	minPixel int
+	maxPixel int
+	bar      unit.Dp
 
 	drag   bool
 	dragID pointer.ID
@@ -24,16 +26,18 @@ type SplitStyle struct {
 
 const defaultBarWidth = unit.Dp(10)
 
-func Split(ratio, min, max float32, bar unit.Dp) *SplitStyle {
+func Split(ratio, min, max float32, minPixel, maxPixel int, bar unit.Dp) *SplitStyle {
 	if bar <= 0 {
 		bar = defaultBarWidth
 	}
 
 	return &SplitStyle{
-		ratio: ratio,
-		min:   min,
-		max:   max,
-		bar:   bar,
+		ratio:    ratio,
+		min:      min,
+		max:      max,
+		minPixel: minPixel,
+		maxPixel: maxPixel,
+		bar:      bar,
 	}
 }
 
@@ -85,10 +89,15 @@ func (s *SplitStyle) Layout(gtx layout.Context, left, right layout.Widget) layou
 				}
 
 				deltaX := e.Position.X - s.dragX
-
 				deltaRatio := deltaX / float32(gtx.Constraints.Max.X)
 
 				if s.ratio+deltaRatio < s.min || s.ratio+deltaRatio > s.max {
+					break
+				}
+
+				if deltaRatio < 0 && leftsize <= s.minPixel {
+					break
+				} else if deltaRatio > 0 && leftsize >= s.maxPixel {
 					break
 				}
 

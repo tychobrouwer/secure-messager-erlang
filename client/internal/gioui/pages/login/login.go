@@ -6,6 +6,7 @@ import (
 	"client-go/internal/gioui/components"
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/utils"
+	"fmt"
 	"log"
 
 	"gioui.org/font"
@@ -19,10 +20,13 @@ import (
 type Page struct {
 	*page.Router
 	client              *client.Client
-	state               int
+	state               uint8
 	usernameInput       *components.InputStyle
 	passwordInput       *components.InputStyle
 	passwordRepeatInput *components.InputStyle
+	signinButton        components.ClickableButton
+	signupButton        components.ClickableButton
+	stateSwitchLink     components.ClickableButtonLink
 }
 
 const (
@@ -31,23 +35,81 @@ const (
 )
 
 func New(r *page.Router, c *client.Client) *Page {
-	return &Page{
+	p := &Page{
 		Router:              r,
 		client:              c,
 		state:               LoginState,
-		usernameInput:       components.Input("Username"),
-		passwordInput:       components.Input("Password"),
-		passwordRepeatInput: components.Input("Repeat Password"),
+		usernameInput:       components.Input("Username", 1),
+		passwordInput:       components.Input("Password", 1),
+		passwordRepeatInput: components.Input("Repeat Password", 1),
+		signinButton:        components.Button("Sign In", 150),
+		signupButton:        components.Button("Sign Up", 150),
+		stateSwitchLink:     components.ButtonLink("Sign In"),
 	}
+
+	p.signinButton.SetOnClick(p.SignIn)
+	p.signupButton.SetOnClick(p.Signup)
+	p.stateSwitchLink.SetOnClick(func() {
+		if p.state == SignupState {
+			p.stateSwitchLink.SetTitle("Sign Up")
+			p.UpdateState(LoginState)
+		} else {
+			p.stateSwitchLink.SetTitle("Sign In")
+			p.UpdateState(SignupState)
+		}
+	})
+
+	return p
+}
+
+func (p *Page) SignIn() {
+	userID := p.usernameInput.Editor.Text()
+	password := p.passwordInput.Editor.Text()
+
+	err := p.client.Login([]byte(userID), []byte(password))
+	if err == nil {
+		log.Printf("Login successful: %s", userID)
+
+		p.Router.SetCurrent("chats")
+		return
+	}
+
+	log.Printf("Login failed: %v", err)
+	p.passwordInput.Editor.SetText("")
+}
+
+func (p *Page) Signup() {
+	userID := p.usernameInput.Editor.Text()
+	password := p.passwordInput.Editor.Text()
+	passwordRepeat := p.passwordRepeatInput.Editor.Text()
+
+	if password != passwordRepeat {
+		log.Printf("Passwords do not match")
+		return
+	}
+
+	err := p.client.Signup([]byte(userID), []byte(password))
+	if err == nil {
+		log.Printf("Sign up successful: %s", userID)
+
+		p.Router.SetCurrent("chats")
+		return
+	}
+
+	log.Printf("Sign up failed: %v", err)
+	p.passwordInput.Editor.SetText("")
+	p.passwordRepeatInput.Editor.SetText("")
 }
 
 var _ page.Page = &Page{}
 
-func (p *Page) UpdateState(state int) {
+func (p *Page) UpdateState(state uint8) {
 	p.state = state
 }
 
 func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	fmt.Println("Login page layout")
+
 	utils.ColorBox(gtx, colors.Surface)
 
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -127,44 +189,9 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 							layout.Rigid(
 								func(gtx layout.Context) layout.Dimensions {
 									if p.state == SignupState {
-										return components.Button("Sign Up", 150, false, func() {
-											userID := p.usernameInput.Editor.Text()
-											password := p.passwordInput.Editor.Text()
-											passwordRepeat := p.passwordRepeatInput.Editor.Text()
-
-											if password != passwordRepeat {
-												log.Printf("Passwords do not match")
-												return
-											}
-
-											err := p.client.Signup([]byte(userID), []byte(password))
-											if err == nil {
-												log.Printf("Sign up successful: %s", userID)
-
-												p.Router.SetCurrent("chats")
-												return
-											}
-
-											log.Printf("Sign up failed: %v", err)
-											p.passwordInput.Editor.SetText("")
-											p.passwordRepeatInput.Editor.SetText("")
-										}).Layout(gtx, th)
+										return p.signupButton.Layout(gtx, th)
 									}
-									return components.Button("Sign In", 150, false, func() {
-										userID := p.usernameInput.Editor.Text()
-										password := p.passwordInput.Editor.Text()
-
-										err := p.client.Login([]byte(userID), []byte(password))
-										if err == nil {
-											log.Printf("Login successful: %s", userID)
-
-											p.Router.SetCurrent("chats")
-											return
-										}
-
-										log.Printf("Login failed: %v", err)
-										p.passwordInput.Editor.SetText("")
-									}).Layout(gtx, th)
+									return p.signinButton.Layout(gtx, th)
 								},
 							),
 							layout.Flexed(0.5, layout.Spacer{}.Layout),
@@ -196,15 +223,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 							),
 							layout.Rigid(
 								func(gtx layout.Context) layout.Dimensions {
-									if p.state == SignupState {
-										return components.ButtonLink("Sign In", func() {
-											p.UpdateState(LoginState)
-										}).Layout(gtx, th)
-									}
-
-									return components.ButtonLink("Sign Up", func() {
-										p.UpdateState(SignupState)
-									}).Layout(gtx, th)
+									return p.stateSwitchLink.Layout(gtx, th)
 								},
 							),
 							layout.Flexed(0.5, layout.Spacer{}.Layout),

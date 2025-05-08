@@ -100,10 +100,16 @@ defmodule TCPServer.DataHandler do
               {:send_data, :send_message, conn_uuid, message_id, message_uuid}
             )
 
-            GenServer.call(
-              TCPServer,
-              {:send_data, :recv_message, conn_uuid, message_id, message_bytes}
-            )
+            case GenServer.call(TCPServer, {:get_connection_uuid, receiver_id_hash}) do
+              nil ->
+                nil
+
+              receiver_conn_uuid ->
+                GenServer.call(
+                  TCPServer,
+                  {:send_data, :recv_message, receiver_conn_uuid, message_id, message_bytes}
+                )
+            end
         end
 
       {:req_messages, {id_hash, data}} ->

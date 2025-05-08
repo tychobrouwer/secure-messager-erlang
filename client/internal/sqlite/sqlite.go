@@ -19,7 +19,7 @@ func OpenDatabase(source string) (*sql.DB, error) {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT,
     value TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAM,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(key) ON CONFLICT REPLACE
   );
 

@@ -57,7 +57,7 @@ defmodule TCPServer do
   end
 
   @impl true
-  def handle_call({:get_connection_id_hash, req_user_id_hash}, _from, state) do
+  def handle_call({:get_connection_uuid, req_user_id_hash}, _from, state) do
     conn_uuid =
       Enum.find_value(state, fn {conn_uuid, %{user_id_hash: user_id_hash}} ->
         if user_id_hash == req_user_id_hash do
