@@ -63,6 +63,12 @@ func (p *Page) UpdateChats() {
 
 	p.chatButtons = make([]components.ClickableButton, len(chats))
 	for i := range chats {
+		messagePayload := &client.ReceiveMessagePayload{
+			ContactIDHash:     chats[i],
+			StartingTimestamp: 0,
+		}
+		p.client.RequestMessages(messagePayload)
+
 		p.chatButtons[i] = components.Button(fmt.Sprintf("%x", chats[i]), 50)
 		p.chatButtons[i].SetOnClick(func() {
 			if p.selectedIdx != i {
@@ -262,6 +268,8 @@ func (p *Page) chatHistory(gtx layout.Context, th *material.Theme) layout.Widget
 			return layout.Center.Layout(gtx, material.Label(th, 18, "error loading chat history").Layout)
 		}
 	}
+
+	fmt.Println("chat history: ", chats)
 
 	list := layout.List{Axis: layout.Vertical}
 

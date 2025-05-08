@@ -217,7 +217,6 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 	}
 	payload := payloadData.payload()
 
-	// Get message from server
 	response, err := c.TCPServer.SendReceive(tcpclient.ReqMessages, payload)
 	if err != nil {
 		return nil, err
@@ -225,7 +224,6 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 
 	c.LastPolledTimestamp = time.Now().UnixMicro()
 
-	// No new messages
 	if len(response.Data) == 0 {
 		return nil, nil
 	}
