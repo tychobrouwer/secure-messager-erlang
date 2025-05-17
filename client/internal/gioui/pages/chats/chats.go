@@ -65,7 +65,7 @@ func (p *Page) UpdateChats() {
 	for i := range chats {
 		messagePayload := &client.ReceiveMessagePayload{
 			ContactIDHash:     chats[i],
-			StartingTimestamp: 0,
+			StartingTimestamp: p.client.LastPolledTimestamp,
 		}
 		p.client.RequestMessages(messagePayload)
 
@@ -95,6 +95,8 @@ func (p *Page) sendMessage() {
 		return
 	}
 
+	p.UpdateChats()
+
 	p.chatInput.Editor.SetText("")
 }
 
@@ -112,6 +114,8 @@ func (p *Page) addFriend() {
 
 	p.chatAddOpen = false
 	p.addFriendInput.Editor.SetText("")
+
+	p.UpdateChats()
 
 	log.Printf("Added friend: %s", friendID)
 }

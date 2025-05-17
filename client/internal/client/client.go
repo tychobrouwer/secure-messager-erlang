@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"client-go/internal/contact"
@@ -142,7 +143,8 @@ func (c *Client) Login(userID, password []byte) error {
 	_, err = c.RequestMessages(nil)
 
 	if err != nil {
-		return err
+		fmt.Printf("Failed to request messages: %v\n", err)
+		// return err
 	}
 
 	return nil
@@ -278,6 +280,10 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	// Decrypt message
 	err := message.Decrypt(mContact.DHRatchet)
 	if err != nil {
+		if strings.Contains(err.Error(), "message index already processed") {
+			return nil
+		}
+
 		return err
 	}
 

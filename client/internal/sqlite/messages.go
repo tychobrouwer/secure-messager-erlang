@@ -23,13 +23,13 @@ func SaveMessage(db *sql.DB, message *message.Message) error {
 func GetMessages(db *sql.DB, senderID []byte) ([]*message.Message, error) {
 	var messages []*message.Message
 
-	stmt, err := db.Prepare("SELECT sender_id_hash, message FROM messages WHERE sender_id_hash = ?")
+	stmt, err := db.Prepare("SELECT sender_id_hash, message FROM messages WHERE sender_id_hash = ? OR receiver_id_hash = ?")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(senderID)
+	rows, err := stmt.Query(senderID, senderID)
 	if err != nil {
 		return nil, err
 	}
