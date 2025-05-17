@@ -6,7 +6,6 @@ import (
 	"client-go/internal/gioui/components"
 	page "client-go/internal/gioui/pages"
 	"client-go/internal/gioui/utils"
-	"fmt"
 	"log"
 
 	"gioui.org/font"
@@ -108,8 +107,6 @@ func (p *Page) UpdateState(state uint8) {
 }
 
 func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	fmt.Println("Login page layout")
-
 	utils.ColorBox(gtx, colors.Surface)
 
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

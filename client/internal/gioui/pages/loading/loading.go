@@ -62,6 +62,8 @@ func (p *Page) init() {
 			p.Router.SetCurrent("chats")
 			return
 		}
+
+		log.Printf("Login failed: %v", err)
 	}
 
 	p.Router.SetCurrent("login")

@@ -139,6 +139,12 @@ func (c *Client) Login(userID, password []byte) error {
 		return err
 	}
 
+	_, err = c.RequestMessages(nil)
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -258,8 +264,14 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	senderIDHash := message.SenderIDHash
 
 	mContact := contact.GetContactByIDHash(c.contacts, senderIDHash)
+
 	if mContact == nil {
-		c.addContactByHash(senderIDHash, ratchet.Receiving)
+		err := c.addContactByHash(senderIDHash, ratchet.Receiving)
+
+		if err != nil {
+			return err
+		}
+
 		mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
 	}
 

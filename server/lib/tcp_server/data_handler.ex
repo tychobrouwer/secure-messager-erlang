@@ -105,9 +105,11 @@ defmodule TCPServer.DataHandler do
                 nil
 
               receiver_conn_uuid ->
+                response_bytes = id_hash <> message_data
+
                 GenServer.call(
                   TCPServer,
-                  {:send_data, :recv_message, receiver_conn_uuid, message_id, message_bytes}
+                  {:send_data, :recv_message, receiver_conn_uuid, message_id, response_bytes}
                 )
             end
         end
