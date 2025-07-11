@@ -249,13 +249,9 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 
 	failedIdxs := []int{}
 	for i := range messages {
-		fmt.Printf("Handling message at index %d\n", i)
-
 		err = c.handleIncomingMessage(messages[i])
 
 		if err != nil {
-			fmt.Printf("Failed to handle message at index %d: %v\n", i, err)
-
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
@@ -286,8 +282,6 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 
 		mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
 	}
-
-	fmt.Printf("Handling incoming message\n")
 
 	// Decrypt message
 	err := message.Decrypt(mContact.DHRatchet)
