@@ -5,14 +5,14 @@ import (
 	"database/sql"
 )
 
-func SaveMessage(db *sql.DB, message *message.Message) error {
-	stmt, err := db.Prepare("INSERT INTO messages (thread_index, receiver_id_hash, sender_id_hash, message) VALUES (?, ?, ?, ?)")
+func SaveMessage(db *sql.DB, ratchetIndex int, message *message.Message) error {
+	stmt, err := db.Prepare("INSERT INTO messages (ratchet_index, thread_index, receiver_id_hash, sender_id_hash, message) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(message.Header.Index, message.ReceiverIDHash, message.SenderIDHash, message.PlainMessage)
+	_, err = stmt.Exec(ratchetIndex, message.Header.Index, message.ReceiverIDHash, message.SenderIDHash, message.PlainMessage)
 	if err != nil {
 		return err
 	}

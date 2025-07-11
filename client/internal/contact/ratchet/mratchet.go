@@ -52,6 +52,8 @@ func (m *MessageRatchet) CKCycle() []byte {
 		return nil
 	}
 
+	fmt.Printf("Key material generated: %x\n", keyMaterial)
+
 	messageKey := keyMaterial[:32] // First half for encryption
 	m.ChainKey = keyMaterial[32:]  // Second half for next iteration
 
@@ -61,6 +63,8 @@ func (m *MessageRatchet) CKCycle() []byte {
 func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) {
 	messageKey := m.CKCycle()
 	nextIndex := m.PreviousIndex + 1
+
+	fmt.Printf("Encrypting message with key: %x\n", messageKey)
 
 	salt := make([]byte, 64)
 	derivedKey, err := derive(messageKey, salt, nil, 64)
@@ -75,6 +79,8 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
 		return nil, nil, -1, err
 	}
 
+	fmt.Printf("Nonce generated: %x\n", nonce)
+
 	ciphertext, err := crypt.EncryptAES(encryptionKey, plaintext, nonce)
 	if err != nil {
 		return nil, nil, -1, err
@@ -84,18 +90,17 @@ func (m *MessageRatchet) Encrypt(plaintext []byte) ([]byte, []byte, int, error) 
 	mac.Write(append(nonce, ciphertext...))
 	macHash := mac.Sum(nil)
 
+	fmt.Printf("MAC generated: %x\n", macHash)
+
 	m.PreviousIndex = nextIndex
 
 	return append(nonce, ciphertext...), macHash, nextIndex, nil
 }
 
 func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte, error) {
-	// Check if this is a skipped message key we already saved
 	if msgKey, exists := m.SkippedMessageKeys[msgIdx]; exists {
-		// Delete after use
 		defer delete(m.SkippedMessageKeys, msgIdx)
 
-		// Use the skipped message key to decrypt
 		return m.decryptWithKey(ciphertext, macHash, msgKey)
 	}
 
@@ -125,7 +130,11 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 	// Get or generate the message key for this index
 	var messageKey []byte
 
+	fmt.Printf("Processing message index: %d, PreviousIndex: %d\n", msgIdx, m.PreviousIndex)
+
 	if msgIdx <= m.PreviousIndex {
+		fmt.Printf("Message index %d is already processed.\n", msgIdx)
+
 		return nil, fmt.Errorf("message index already processed: %d", msgIdx)
 	} else {
 		// Need to advance to this index
@@ -140,6 +149,8 @@ func (m *MessageRatchet) Decrypt(ciphertext, macHash []byte, msgIdx int) ([]byte
 }
 
 func (m *MessageRatchet) decryptWithKey(ciphertext, macHash, messageKey []byte) ([]byte, error) {
+	fmt.Printf("Decrypting message with key: %x\n", messageKey)
+
 	salt := make([]byte, 64)
 	derivedKey, err := derive(messageKey, salt, nil, 64)
 	if err != nil {
@@ -150,9 +161,13 @@ func (m *MessageRatchet) decryptWithKey(ciphertext, macHash, messageKey []byte) 
 
 	nonce, ciphertext := ciphertext[:12], ciphertext[12:]
 
+	fmt.Printf("Nonce for decryption: %x\n", nonce)
+
 	mac := hmac.New(sha256.New, authenticationKey)
 	mac.Write(append(nonce, ciphertext...))
 	expectedMac := mac.Sum(nil)
+
+	fmt.Printf("Expected MAC: %x\n", expectedMac)
 
 	if !hmac.Equal(expectedMac, macHash) {
 		return nil, fmt.Errorf("invalid MAC")

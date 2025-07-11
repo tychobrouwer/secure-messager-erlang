@@ -211,6 +211,8 @@ func (c *Client) ListenIncomingMessages() {
 			return
 		}
 
+		fmt.Printf("Received message ListenIncomingMessages\n")
+
 		err = c.handleIncomingMessage(message)
 		if err != nil {
 			fmt.Printf("Failed to handle incoming message: %v\n", err)
@@ -247,9 +249,13 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 
 	failedIdxs := []int{}
 	for i := range messages {
+		fmt.Printf("Handling message at index %d\n", i)
+
 		err = c.handleIncomingMessage(messages[i])
 
 		if err != nil {
+			fmt.Printf("Failed to handle message at index %d: %v\n", i, err)
+
 			failedIdxs = append(failedIdxs, i)
 			continue
 		}
@@ -265,6 +271,10 @@ func (c *Client) RequestMessages(payloadData *ReceiveMessagePayload) ([]*message
 func (c *Client) handleIncomingMessage(message *message.Message) error {
 	senderIDHash := message.SenderIDHash
 
+	if bytes.Equal(senderIDHash, c.IDHash) {
+		senderIDHash = message.ReceiverIDHash
+	}
+
 	mContact := contact.GetContactByIDHash(c.contacts, senderIDHash)
 
 	if mContact == nil {
@@ -277,6 +287,8 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 		mContact = contact.GetContactByIDHash(c.contacts, senderIDHash)
 	}
 
+	fmt.Printf("Handling incoming message\n")
+
 	// Decrypt message
 	err := message.Decrypt(mContact.DHRatchet)
 	if err != nil {
@@ -288,7 +300,7 @@ func (c *Client) handleIncomingMessage(message *message.Message) error {
 	}
 
 	// Save decrypted message
-	err = sqlite.SaveMessage(c.DB, message)
+	err = sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchedIndex, message)
 	if err != nil {
 		return err
 	}
@@ -305,13 +317,13 @@ func (c *Client) SendMessage(contactIDHash, plainMessage []byte) error {
 		return fmt.Errorf("plainMessage cannot be empty")
 	}
 
-	contact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
-	if contact == nil {
+	mContact := contact.GetContactByIDHash(c.contacts, contactIDHash[:])
+	if mContact == nil {
 		return fmt.Errorf("contact not found")
 	}
 
-	message := message.NewPlainMessage(c.IDHash, contact.IDHash, plainMessage)
-	message.Encrypt(contact.DHRatchet)
+	message := message.NewPlainMessage(c.IDHash, mContact.IDHash, plainMessage)
+	message.Encrypt(mContact.DHRatchet)
 
 	payload := append(contactIDHash[:], message.Payload()...)
 
@@ -320,8 +332,8 @@ func (c *Client) SendMessage(contactIDHash, plainMessage []byte) error {
 		return err
 	}
 
-	sqlite.SaveMessage(c.DB, message)
-	sqlite.UpdateContact(c.DB, contact)
+	sqlite.SaveMessage(c.DB, mContact.DHRatchet.RatchedIndex, message)
+	sqlite.UpdateContact(c.DB, mContact)
 
 	return nil
 }

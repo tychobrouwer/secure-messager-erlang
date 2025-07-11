@@ -27,7 +27,6 @@ defmodule DbManager.Message do
     |> Changeset.cast(
       params,
       [:message_data, :sender_id, :receiver_id]
-      # [:tag, :hash, :public_key, :message, :sender_id, :receiver_id, :send_at]
     )
     |> Changeset.validate_required([
       :message_data,

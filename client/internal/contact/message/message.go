@@ -169,8 +169,11 @@ func (m *Message) Encrypt(r *ratchet.DHRatchet) error {
 }
 
 func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
+	fmt.Printf("Decrypting message\n")
+
 	// Try current ratchet first
 	if r.IsCurrentRatchet(m.Header.PublicKey) {
+		fmt.Printf("Using current ratchet for decryption\n")
 		messageRatchet := r.GetMessageRatchet()
 		plaintext, err := messageRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err == nil {
@@ -183,14 +186,19 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// Try previous ratchets if current fails
 	prevRatchet := r.GetPrevRatchet(m.Header.PublicKey)
 	if prevRatchet != nil {
+		fmt.Printf("Using previous ratchet for decryption\n")
 		plaintext, err := prevRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err == nil {
 			m.PlainMessage = plaintext
 			return nil
 		}
+
+		return err
 	}
 
 	if !r.IsCurrentRatchet(m.Header.PublicKey) {
+		fmt.Printf("No matching ratchet found, establishing new ratchet\n")
+
 		// Establish new ratchet chain with the sender's public key
 		r.RKCycle(m.Header.PublicKey)
 		r.UpdateState(ratchet.Receiving)

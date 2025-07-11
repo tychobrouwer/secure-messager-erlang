@@ -29,7 +29,7 @@ func Input(hint string, maxLines int) *InputStyle {
 	}
 }
 
-func (e InputStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (e *InputStyle) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	textColorMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: colors.OnSurface}.Add(gtx.Ops)
 	textColor := textColorMacro.Stop()

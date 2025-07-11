@@ -28,6 +28,7 @@ type Page struct {
 	sendButton      components.ClickableButton
 	addFriendButton components.ClickableButton
 	addFriendIcon   components.ClickableButtonIcon
+	chatListState   layout.List
 }
 
 func New(r *page.Router, c *client.Client) *Page {
@@ -47,6 +48,10 @@ func New(r *page.Router, c *client.Client) *Page {
 		sendButton:      components.Button("Send", 50),
 		addFriendButton: components.Button("Add", 50),
 		addFriendIcon:   components.ButtonIcon(icons.Plus, 1, 20, false),
+		chatListState: layout.List{
+			Axis:      layout.Vertical,
+			Alignment: layout.End,
+		},
 	}
 }
 
@@ -62,11 +67,11 @@ func (p *Page) UpdateChats() {
 
 	p.chatButtons = make([]components.ClickableButton, len(chats))
 	for i := range chats {
-		messagePayload := &client.ReceiveMessagePayload{
-			ContactIDHash:     chats[i],
-			StartingTimestamp: p.client.LastPolledTimestamp,
-		}
-		p.client.RequestMessages(messagePayload)
+		// messagePayload := &client.ReceiveMessagePayload{
+		// 	ContactIDHash:     chats[i],
+		// 	StartingTimestamp: p.client.LastPolledTimestamp,
+		// }
+		// p.client.RequestMessages(messagePayload)
 
 		p.chatButtons[i] = components.Button(fmt.Sprintf("%x", chats[i]), 50)
 		p.chatButtons[i].SetOnClick(func() {
@@ -150,9 +155,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(
-						func(gtx layout.Context) layout.Dimensions {
-							return p.chatHeader(th)(gtx)
-						},
+						p.chatHeader(th),
 					),
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
@@ -178,10 +181,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 				Bottom: 5,
 				Left:   10,
 				Right:  10,
-			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return p.chatHistory(gtx, th)(gtx)
-
-			})
+			}.Layout(gtx, p.chat(gtx, th))
 		},
 	)
 
