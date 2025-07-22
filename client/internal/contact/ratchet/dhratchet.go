@@ -18,13 +18,13 @@ const (
 )
 
 type DHRatchet struct {
-	KeyPair          crypt.KeyPair
-	RootKey          []byte
-	ChildKey         []byte
+	KeyPair           crypt.KeyPair
+	RootKey           []byte
+	ChildKey          []byte
 	CurrentMRatchet   *MessageRatchet
 	PreviousMRatchets []MessageRatchet
-	RatchetIndex     int
-	State            RatchetState
+	RatchetIndex      int
+	State             RatchetState
 }
 
 func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte, initState RatchetState) *DHRatchet {
@@ -39,12 +39,12 @@ func NewDHRatchet(keypair crypt.KeyPair, foreignPublicKey []byte, initState Ratc
 	initGob()
 
 	return &DHRatchet{
-		KeyPair:          keypair,
-		RootKey:          rootKey,
+		KeyPair:           keypair,
+		RootKey:           rootKey,
 		CurrentMRatchet:   messageRatchet,
 		PreviousMRatchets: []MessageRatchet{},
-		RatchetIndex:     0,
-		State:            initState,
+		RatchetIndex:      0,
+		State:             initState,
 	}
 }
 
@@ -72,7 +72,7 @@ func (r *DHRatchet) Unmarshal(data []byte) error {
 
 func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
 	if foreignPublicKey == nil {
-	    foreignPublicKey = r.CurrentMRatchet.ForeignPublicKey
+		foreignPublicKey = r.CurrentMRatchet.ForeignPublicKey
 	}
 
 	// Store current ratchet before creating a new one
@@ -80,7 +80,7 @@ func (r *DHRatchet) RKCycle(foreignPublicKey []byte) {
 		r.PreviousMRatchets = append(r.PreviousMRatchets, *r.CurrentMRatchet)
 
 		// Limit the number of stored previous ratchets (optional)
-		if len(r.PreviousRatchets) > PREV_RATCHET_LIMIT {
+		if len(r.PreviousMRatchets) > PREV_RATCHET_LIMIT {
 			r.PreviousMRatchets = r.PreviousMRatchets[len(r.PreviousMRatchets)-PREV_RATCHET_LIMIT:]
 		}
 	}

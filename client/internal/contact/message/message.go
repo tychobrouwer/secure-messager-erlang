@@ -191,9 +191,9 @@ func (m *Message) Decrypt(r *ratchet.DHRatchet) error {
 	// If no previous ratchet found, cycle the current ratchet
 	if !r.IsCurrentRatchet(m.Header.PublicKey) {
 		r.RKCycle(m.Header.PublicKey)
-	    r.State = ratchet.Receiving
+		r.State = ratchet.Receiving
 
-		plaintext, err := ratchet.CurrentMRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
+		plaintext, err := r.CurrentMRatchet.Decrypt(m.EncryptedMessage, hashToBytes(m.hash), m.Header.Index)
 		if err != nil {
 			return err
 		}

@@ -172,9 +172,6 @@ defmodule TCPServer.DataHandler do
     }
   end
 
-  defp parse_packet_data({:error, reason}, _packet_response_type),
-    do: {:error, reason}
-
   defp parse_packet_data(packet_data, :no_auth) when byte_size(packet_data) < 16,
     do: {:error, :invalid_packet_no_auth}
 
